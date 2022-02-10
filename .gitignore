@@ -1,0 +1,12 @@
+Debug
+Release
+ipch
+[Bb]uild
+*.sdf
+*.opensdf
+*.db
+*.opendb
+*.suo
+*.exe
+!CreateMain.exe
+.vs
