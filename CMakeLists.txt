@@ -13,9 +13,11 @@ if (WIN32)
 	set(CPPFILES
 		main.cpp
 		renderer.h
+		renderer.cpp
 		XTime.cpp
 		XTime.h
 		h2bParser.h
+		Defines.h
 	)
 	set(VERTEX_SHADERS
 		shaders/vs.hlsl

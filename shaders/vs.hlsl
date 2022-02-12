@@ -1,5 +1,3 @@
-
-
 [[vk::push_constant]]
 cbuffer MESH_INDEX
 {
@@ -18,11 +16,6 @@ struct PS_INPUT
     float3 nrm : NORMAL;
     float3 wld : WORLD;
 };
-
-// TODO: 2i
-// an ultra simple hlsl vertex shader
-// TODO: Part 2b
-
 
 struct OBJ_ATTRIBUTES
 {
@@ -49,27 +42,20 @@ struct ShaderData
 };
 
 StructuredBuffer<ShaderData> frameData;
-// TODO: Part 4g
-// TODO: Part 2i
-// TODO: Part 3e
-// TODO: Part 4a
-// TODO: Part 1f
-// TODO: Part 4b
 PS_INPUT main(VS_INPUT input) : SV_POSITION
 {
-    // TODO: Part 1h
     PS_INPUT output = (PS_INPUT) 0;
+    //move input variables to output
     output.pos = float4(input.pos, 1);
     output.uvw = input.uvw;
     output.nrm = input.nrm;
-	// TODO: Part 2i
+    //get the world space data of the position
     output.pos = mul(frameData[0].worlds[mesh_id], output.pos);
     output.wld = output.pos.xyz;
+    //put the position into perspective space
     output.pos = mul(frameData[0].view, output.pos);
     output.pos = mul(frameData[0].proj, output.pos);
-		// TODO: Part 4e
-	// TODO: Part 4b
+    //calculate the normals
     output.nrm = mul(frameData[0].worlds[mesh_id], float4(output.nrm, 1));
-		// TODO: Part 4e
     return output;
 }
