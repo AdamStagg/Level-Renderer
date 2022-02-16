@@ -55,6 +55,9 @@ int main()
 			{
 				if (+vulkan.StartFrame(2, clrAndDepth))
 				{
+					renderer.SignalTimer();
+					//InputData input = renderer.GetAllInput();
+					//renderer.UpdateCamera(input, 0.3f);
 					renderer.Render();
 					vulkan.EndFrame(true);
 				}

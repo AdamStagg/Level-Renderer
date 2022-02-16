@@ -348,8 +348,7 @@ Renderer::Renderer(GW::SYSTEM::GWindow _win, GW::GRAPHICS::GVulkanSurface _vlk)
 void Renderer::Render()
 {
 
-	//Signal and create proxy
-	timer.Signal();
+	//create proxy
 	GW::MATH::GMatrix proxy; proxy.Create();
 
 	// Rotate the world matrix
@@ -390,6 +389,113 @@ void Renderer::Render()
 		vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_ALL_GRAPHICS, 0, sizeof(PUSH_CONSTANTS), &pc);
 		vkCmdDrawIndexed(commandBuffer, FSLogo_meshes[i].indexCount, 1, FSLogo_meshes[i].indexOffset, 0, 0);
 	}
+}
+
+InputData Renderer::GetAllInput() {
+
+	InputData result = {};
+
+	// create proxies
+	GW::INPUT::GInput iProxy;
+	GW::INPUT::GController cProxy;
+	iProxy.Create(win);
+	cProxy.Create();
+
+	//up/down
+	iProxy.GetState(G_KEY_SPACE, result.kSpace);
+	iProxy.GetState(G_KEY_LEFTSHIFT, result.kShift);
+
+	cProxy.GetState(0, G_RIGHT_TRIGGER_AXIS, result.cRTrigger);
+	cProxy.GetState(0, G_LEFT_TRIGGER_AXIS, result.cLTrigger);
+
+	//fowards/backwards
+	iProxy.GetState(G_KEY_W, result.kW);
+	iProxy.GetState(G_KEY_S, result.kS);
+
+	cProxy.GetState(0, G_LY_AXIS, result.cLYAxis);
+
+	//right/left
+	iProxy.GetState(G_KEY_A, result.kA);
+	iProxy.GetState(G_KEY_D, result.kD);
+
+	cProxy.GetState(0, G_LX_AXIS, result.cLXAxis);
+
+	//rotation
+	GW::GReturn mResult = iProxy.GetMouseDelta(result.mX, result.mY);
+
+	if (!G_PASS(mResult) || mResult == GW::GReturn::REDUNDANT)
+	{
+		result.mX = 0;
+		result.mY = 0;
+	}
+
+	cProxy.GetState(0, G_RY_AXIS, result.cRYAxis);
+	cProxy.GetState(0, G_RX_AXIS, result.cRXAxis);
+
+	//open file
+	iProxy.GetState(G_KEY_LEFTCONTROL, result.kCtrl);
+	iProxy.GetState(G_KEY_O, result.kO);
+
+	//window height and witdh
+	win.GetClientHeight(result.winHeight);
+	win.GetClientWidth(result.winWidth);
+
+	result.winFOV = 65 * (DegToRad);
+
+	vlk.GetAspectRatio(result.winAR);
+
+	return result;
+}
+
+void Renderer::UpdateCamera(InputData input, float cameraSpeed) {
+	
+	//Create proxy
+	GW::MATH::GMatrix proxy;
+	proxy.Create();
+
+	//Inverse camera
+	proxy.InverseF(view, view);
+
+	float perFrameSpeed = cameraSpeed * timer.Delta();
+
+	//up and down
+	view.row4.y += input.kSpace - input.kShift + input.cRTrigger - input.cLTrigger;
+
+	//forward/backward
+	float totalZChange = input.kW - input.kS + input.cLYAxis;
+
+	//left/right
+	float totalXChange = input.kD - input.kA + input.cLXAxis;
+
+	//apply translations
+	GW::MATH::GVECTORF translation = { totalXChange * perFrameSpeed, 0, totalZChange * perFrameSpeed, 0 };
+	GW::MATH::GMATRIXF translationMat;
+	proxy.TranslateGlobalF(GW::MATH::GIdentityMatrixF, translation, translationMat);
+	proxy.MultiplyMatrixF(translationMat, view, view);
+
+	//rotation
+	float rotSpeed = PI * timer.Delta();
+
+	float pitch = input.winFOV * (input.mY / input.winHeight) - rotSpeed * input.cRYAxis;
+	GW::MATH::GMATRIXF updown = GW::MATH::GIdentityMatrixF;
+	proxy.RotationYawPitchRollF(0, pitch, 0, updown);
+
+	float yaw = input.winFOV * input.winAR * (input.mX / input.winWidth) + (rotSpeed * input.cRXAxis);
+	GW::MATH::GMATRIXF leftright = GW::MATH::GIdentityMatrixF;
+	proxy.RotationYawPitchRollF(yaw, 0, 0, leftright);
+
+	proxy.MultiplyMatrixF(updown, view, view); //local pitch
+	GW::MATH::GVECTORF camPos = view.row4; //store position
+	proxy.MultiplyMatrixF(view, leftright, view); //global yaw
+	view.row4 = camPos;	//restore position
+
+	//Reinverse camera
+	proxy.InverseF(view, view);
+}
+
+void Renderer::SignalTimer()
+{
+	timer.Signal();
 }
 
 std::string Renderer::ShaderAsString(const char* shaderFilePath) {

@@ -10,3 +10,4 @@ ipch
 *.exe
 !CreateMain.exe
 .vs
+/CMakeLists.txt.bak

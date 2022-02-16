@@ -8,6 +8,7 @@
 #include <vector>
 #include "Defines.h"
 #include "../Gateware/Gateware.h"
+#include "InputData.h"
 
 #ifdef _WIN32 // must use MT platform DLL libraries on windows
 	#pragma comment(lib, "shaderc_combined.lib") 
@@ -94,9 +95,10 @@ class Renderer
 public:
 
 	Renderer(GW::SYSTEM::GWindow _win, GW::GRAPHICS::GVulkanSurface _vlk);
-
 	void Render();
-	
+	InputData GetAllInput();
+	void UpdateCamera(InputData, float);
+	void SignalTimer();
 private:
 	// Load a shader file as a string of characters.
 	std::string ShaderAsString(const char* shaderFilePath);
