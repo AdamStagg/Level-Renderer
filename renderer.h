@@ -5,10 +5,10 @@
 #include "FSLogo.h"
 #include "XTime.h"
 #include "vulkan/vulkan_core.h"
-#include <vector>
 #include "Defines.h"
 #include "../Gateware/Gateware.h"
 #include "InputData.h"
+#include "RendererStructs.h"
 
 #ifdef _WIN32 // must use MT platform DLL libraries on windows
 	#pragma comment(lib, "shaderc_combined.lib") 
@@ -26,44 +26,6 @@ extern const char* pixelShaderSource;
 // Creation, Rendering & Cleanup
 class Renderer
 {
-#define MAX_SUBMESH_PER_DRAW 1024
-	struct SHADER_MODEL_DATA
-	{
-		GW::MATH::GVECTORF lightDir, lightCol, ambLight, camPos;
-		GW::MATH::GMATRIXF view, proj;
-
-		GW::MATH::GMATRIXF matricies[MAX_SUBMESH_PER_DRAW];
-		OBJ_ATTRIBUTES materials[MAX_SUBMESH_PER_DRAW];
-	};
-	struct Vertex
-	{
-		union
-		{
-			struct {
-				float x, y, z;
-			};
-			float xyz[3];
-		};
-		union
-		{
-			struct {
-				float u, v, w;
-			};
-			float uvw[3];
-		};
-		union
-		{
-			struct {
-				float n, r, m;
-			};
-			float nrm[3];
-		};
-	};
-	struct PUSH_CONSTANTS
-	{
-		unsigned int materialIndex;
-		int padding[31] = {};
-	};
 	// proxy handles
 	GW::SYSTEM::GWindow win;
 	GW::GRAPHICS::GVulkanSurface vlk;
@@ -75,6 +37,9 @@ class Renderer
 	VkDeviceMemory vertexData = nullptr;
 	VkBuffer indexHandle = nullptr;
 	VkDeviceMemory indexData = nullptr;
+	//std::map<std::string, std::vector<GW::MATH::GMATRIXF>> meshes;
+	std::map<std::string, model> models;
+
 	std::vector<VkBuffer> storageHandle;
 	std::vector<VkDeviceMemory> storageData;
 
@@ -102,5 +67,6 @@ public:
 private:
 	// Load a shader file as a string of characters.
 	std::string ShaderAsString(const char* shaderFilePath);
+	GW::GReturn LoadLevel(const char* _filepath);
 	void CleanUp();
 };

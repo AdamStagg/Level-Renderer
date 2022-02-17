@@ -42,7 +42,7 @@ struct ShaderData
 };
 
 StructuredBuffer<ShaderData> frameData;
-PS_INPUT main(VS_INPUT input) : SV_POSITION
+PS_INPUT main(VS_INPUT input, uint instance_id : SV_InstanceID)
 {
     PS_INPUT output = (PS_INPUT) 0;
     //move input variables to output

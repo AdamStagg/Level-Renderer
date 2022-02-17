@@ -1,4 +1,5 @@
 #include "renderer.h"
+#include "h2bParser.h"
 
 Renderer::Renderer(GW::SYSTEM::GWindow _win, GW::GRAPHICS::GVulkanSurface _vlk)
 {
@@ -55,6 +56,43 @@ Renderer::Renderer(GW::SYSTEM::GWindow _win, GW::GRAPHICS::GVulkanSurface _vlk)
 	vlk.GetPhysicalDevice((void**)&physicalDevice);
 
 	// Create Vertex Buffer
+
+	//Renderer::LoadLevel("../levels/GameLevel.txt");
+
+	H2B::Parser parser;
+	
+	for (auto item : models)
+	{
+		//read the h2b file
+		bool resultOfParse = parser.Parse(std::string("../assets/" + item.first + ".h2b").c_str());
+
+		if (!resultOfParse)
+		{
+			continue;
+		}
+
+		//resize vectors
+		item.second.verts.resize(parser.vertexCount);
+		item.second.indices.resize(parser.indexCount);
+
+		//copy data to the buffers
+		std::memcpy(&item.second.verts, &parser.vertices, sizeof(parser.vertices));
+		std::memcpy(&item.second.indices, &parser.indices, sizeof(parser.indices));
+
+		//create vertex buffer
+		GvkHelper::create_buffer(physicalDevice, device, sizeof(item.second.verts),
+			VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+			VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &item.second.vertexHandle, &item.second.vertexData);
+		GvkHelper::write_to_buffer(device, item.second.vertexData, item.second.verts.data(), sizeof(item.second.verts));
+
+		GvkHelper::create_buffer(physicalDevice, device, sizeof(item.second.indices),
+			VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+			VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &item.second.indexHandle, &item.second.indexData);
+		GvkHelper::write_to_buffer(device, item.second.indexData, item.second.indices.data(), sizeof(item.second.indices));
+		int t = 0;
+	}
+
+
 	Vertex verts[FSLogo_vertexcount];
 	std::memcpy(verts, FSLogo_vertices, sizeof(FSLogo_vertices));
 
@@ -375,8 +413,8 @@ void Renderer::Render()
 
 	// now we can draw
 	VkDeviceSize offsets[] = { 0 };
-	vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexHandle, offsets);
-	vkCmdBindIndexBuffer(commandBuffer, indexHandle, 0, VK_INDEX_TYPE_UINT32);
+	vkCmdBindVertexBuffers(commandBuffer, 0, 1, &/*models["Grass_Flat"].*/vertexHandle, offsets);
+	vkCmdBindIndexBuffer(commandBuffer, /*models["Grass_Flat"].*/indexHandle, 0, VK_INDEX_TYPE_UINT32);
 	for (size_t i = 0; i < storageData.size(); i++)
 	{
 		GvkHelper::write_to_buffer(device, storageData[i], &shaderData, sizeof(shaderData));
@@ -512,20 +550,78 @@ std::string Renderer::ShaderAsString(const char* shaderFilePath) {
 	return output;
 }
 
+GW::GReturn Renderer::LoadLevel(const char* filepath) 
+{
+	std::ifstream stream(filepath);
+
+	if (!stream.is_open())
+	{
+		return GW::GReturn::FILE_NOT_FOUND;
+	}
+
+	while (!stream.eof())
+	{
+		std::string line;
+
+		std::getline(stream, line);
+
+		if (!strcmp(line.c_str(), "MESH")) //checks to see if we found the MESH keyword
+		{
+			std::getline(stream, line);
+
+			line = line.substr(0, line.find('.'));
+			std::string meshName = line;
+			GW::MATH::GMATRIXF worldMatrix;
+		
+			for (size_t i = 0; i < 4; i++)
+			{
+				//get line and trim it to only numbers or ,
+				std::getline(stream, line);
+				std::remove(line.begin(), line.end(), ' ');
+				size_t start = line.find('(') + 1;
+				line = line.substr(start, line.find(')') - start);
+				//get each element of data
+				for (size_t j = 0; j < 4; j++)
+				{
+					size_t end = line.find(',');
+					worldMatrix.data[(i << 2) + j] = std::stof(line.substr(0, end));
+					line = line.substr(end + 1);
+				}
+			}
+
+			//models[meshName].matrices.push_back(worldMatrix);
+		}
+	}
+
+	return GW::GReturn::SUCCESS;
+}
+
 void Renderer::CleanUp()
 {
 	// wait till everything has completed
 	vkDeviceWaitIdle(device);
 	// Release allocated buffers, shaders & pipeline
-	vkDestroyBuffer(device, indexHandle, nullptr);
-	vkFreeMemory(device, indexData, nullptr);
+	//vkDestroyBuffer(device, indexHandle, nullptr);
+	//vkFreeMemory(device, indexData, nullptr);
 	for (size_t i = 0; i < storageData.size(); i++)
 	{
 		vkDestroyBuffer(device, storageHandle[i], nullptr);
 		vkFreeMemory(device, storageData[i], nullptr);
 	}
-	vkDestroyBuffer(device, vertexHandle, nullptr);
-	vkFreeMemory(device, vertexData, nullptr);
+
+	//for (auto item : models)
+	//{
+	//	vkDestroyBuffer(device, item.second.vertexHandle, nullptr);
+	//	vkDestroyBuffer(device, item.second.indexHandle, nullptr);
+	//	vkFreeMemory(device, item.second.vertexData, nullptr);
+	//	vkFreeMemory(device, item.second.indexData, nullptr);
+	//}
+	vkDestroyBuffer(device, models["Grass_Flat"].vertexHandle, nullptr);
+	vkDestroyBuffer(device, models["Grass_Flat"].indexHandle, nullptr);
+
+
+	//vkDestroyBuffer(device, vertexHandle, nullptr);
+	//vkFreeMemory(device, vertexData, nullptr);
 	vkDestroyShaderModule(device, vertexShader, nullptr);
 	vkDestroyShaderModule(device, pixelShader, nullptr);
 	vkDestroyDescriptorSetLayout(device, setLayout, nullptr);
