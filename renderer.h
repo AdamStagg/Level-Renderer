@@ -2,7 +2,7 @@
 // minimalistic code to draw a single triangle, this is not part of the API.
 // TODO: Part 1b
 #include "shaderc/shaderc.h" // needed for compiling shaders at runtime
-#include "FSLogo.h"
+//#include "FSLogo.h"
 #include "XTime.h"
 #include "vulkan/vulkan_core.h"
 #include "Defines.h"
@@ -38,7 +38,10 @@ class Renderer
 	VkBuffer indexHandle = nullptr;
 	VkDeviceMemory indexData = nullptr;
 	//std::map<std::string, std::vector<GW::MATH::GMATRIXF>> meshes;
-	std::map<std::string, model> models;
+	std::map<std::string, modelInfo> models;
+
+	GW::INPUT::GInput iProxy;
+	GW::INPUT::GController cProxy;
 
 	std::vector<VkBuffer> storageHandle;
 	std::vector<VkDeviceMemory> storageData;
@@ -54,7 +57,7 @@ class Renderer
 		
 	XTime timer;
 	GW::MATH::GMATRIXF world, view, proj;
-	GW::MATH::GVECTORF lightPos, lightCol;
+	GW::MATH::GVECTORF lightPos, lightCol, camPos;
 	SHADER_MODEL_DATA shaderData;
 	PUSH_CONSTANTS pc;
 public:

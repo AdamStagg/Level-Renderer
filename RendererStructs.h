@@ -50,8 +50,8 @@ struct Vertex
 };
 struct PUSH_CONSTANTS
 {
-	unsigned int materialIndex;
-	int padding[31] = {};
+	unsigned materialIndex, modelIndex;
+	int padding[30] = {};
 };
 
 struct model
@@ -67,4 +67,25 @@ struct model
 	unsigned meshCount;
 	std::vector<OBJATTRIBUTES> attributes;
 	std::vector<H2B::MESH> meshes;
+};
+
+struct modelInfo
+{
+	std::vector<GW::MATH::GMATRIXF> matrices;
+	unsigned matOffset;
+	unsigned matCount;
+
+	unsigned vertOffset;
+	unsigned vertCount;
+	
+	unsigned indexOffset;
+	unsigned indexCount;
+	
+	unsigned materialOffset;
+	unsigned materialCount;
+
+	unsigned meshCount;
+	std::vector<H2B::MESH> meshes;
+
+	std::vector<H2B::BATCH> batches;
 };

@@ -2,6 +2,7 @@
 cbuffer MESH_INDEX
 {
     uint mesh_id;
+    uint model_id;
 };
 struct PS_INPUT
 {
@@ -37,20 +38,22 @@ struct ShaderData
 StructuredBuffer<ShaderData> frameData;
 float4 main(PS_INPUT input) : SV_TARGET
 {
+    input.nrm = normalize(input.nrm);
+    
 	//Directional
-    float3 lightRat = clamp(dot(-frameData[0].lightDir.xyz, input.nrm), 0, 1);
+    float lightRat = clamp(dot(-frameData[0].lightDir.xyz, input.nrm), 0, 1);
 
 	//Ambient
-    lightRat += frameData[0].ambLight;
+    lightRat += frameData[0].ambLight.x;
 
 	//Specular
     float3 viewdir = normalize(frameData[0].camPos.xyz - input.wld.xyz); //shader swizzling
     float3 vec = normalize((-frameData[0].lightDir.xyz) + viewdir);
-    float3 intensity = max(pow(clamp(dot(input.nrm, vec), 0, 1), frameData[0].attributes[mesh_id].Ns), 0);
+    float intensity = max(pow(clamp(dot(input.nrm, vec), 0, 1), frameData[0].attributes[mesh_id].Ns), 0);
     float3 reflectedLight = frameData[0].lightCol.xyz * frameData[0].attributes[mesh_id].Ks * intensity;
 
     float3 light = lightRat * frameData[0].attributes[mesh_id].Kd * frameData[0].lightCol.xyz;
-
+    
     light += reflectedLight;
-    return float4(light, 0);
+    return saturate(float4(light, 0));
 }

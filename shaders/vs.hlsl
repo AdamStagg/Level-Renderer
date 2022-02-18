@@ -2,6 +2,7 @@
 cbuffer MESH_INDEX
 {
     uint mesh_id;
+    uint model_id;
 };
 struct VS_INPUT
 {
@@ -50,12 +51,12 @@ PS_INPUT main(VS_INPUT input, uint instance_id : SV_InstanceID)
     output.uvw = input.uvw;
     output.nrm = input.nrm;
     //get the world space data of the position
-    output.pos = mul(frameData[0].worlds[mesh_id], output.pos);
+    output.pos = mul(frameData[0].worlds[model_id + instance_id], output.pos);
     output.wld = output.pos.xyz;
     //put the position into perspective space
     output.pos = mul(frameData[0].view, output.pos);
     output.pos = mul(frameData[0].proj, output.pos);
     //calculate the normals
-    output.nrm = mul(frameData[0].worlds[mesh_id], float4(output.nrm, 1));
+    output.nrm = mul(frameData[0].worlds[model_id + instance_id], float4(output.nrm, 0)).xyz;
     return output;
 }
