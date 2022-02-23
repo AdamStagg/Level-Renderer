@@ -17,8 +17,8 @@ struct OBJATTRIBUTES
 #define MAX_SUBMESH_PER_DRAW 1024
 struct SHADER_MODEL_DATA
 {
-	GW::MATH::GVECTORF lightDir, lightCol, ambLight, camPos;
-	GW::MATH::GMATRIXF view, proj;
+	GW::MATH::GVECTORF lightDir, lightCol, ambLight, camPos[2];
+	GW::MATH::GMATRIXF view[2], proj;
 
 	GW::MATH::GMATRIXF matricies[MAX_SUBMESH_PER_DRAW];
 	OBJATTRIBUTES materials[MAX_SUBMESH_PER_DRAW] ;
@@ -51,7 +51,8 @@ struct Vertex
 struct PUSH_CONSTANTS
 {
 	unsigned materialIndex, modelIndex;
-	int padding[30] = {};
+	unsigned camIndex;
+	int padding[29] = {};
 };
 
 struct model

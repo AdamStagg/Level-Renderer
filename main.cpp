@@ -57,6 +57,7 @@ int main()
 				{
 					renderer.SignalTimer();
 					InputData input = renderer.GetAllInput();
+					renderer.Changelevel(input);
 					renderer.UpdateCamera(input, 3.0f);
 					renderer.Render();
 					vulkan.EndFrame(true);

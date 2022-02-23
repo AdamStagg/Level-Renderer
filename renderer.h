@@ -42,9 +42,14 @@ class Renderer
 
 	GW::INPUT::GInput iProxy;
 	GW::INPUT::GController cProxy;
+	GW::MATH::GMatrix mProxy;
+	GW::MATH::GVector vProxy;
 
 	std::vector<VkBuffer> storageHandle;
 	std::vector<VkDeviceMemory> storageData;
+
+	std::vector<Vertex> verts;
+	std::vector<int> indices;
 
 	VkShaderModule vertexShader = nullptr;
 	VkShaderModule pixelShader = nullptr;
@@ -56,8 +61,9 @@ class Renderer
 	std::vector<VkDescriptorSet> descriptorSets;
 		
 	XTime timer;
-	GW::MATH::GMATRIXF world, view, proj;
-	GW::MATH::GVECTORF lightPos, lightCol, camPos;
+	std::vector<GW::MATH::GMATRIXF> viewMatrices;
+	std::vector<GW::MATH::GVECTORF> camPositions;
+	GW::MATH::GVECTORF lightPos, lightCol;
 	SHADER_MODEL_DATA shaderData;
 	PUSH_CONSTANTS pc;
 public:
@@ -65,11 +71,15 @@ public:
 	Renderer(GW::SYSTEM::GWindow _win, GW::GRAPHICS::GVulkanSurface _vlk);
 	void Render();
 	InputData GetAllInput();
+	void Changelevel(InputData input);
 	void UpdateCamera(InputData, float);
 	void SignalTimer();
 private:
 	// Load a shader file as a string of characters.
 	std::string ShaderAsString(const char* shaderFilePath);
+	void CreateVertexIndexBuffers(VkPhysicalDevice& physicalDevice);
 	GW::GReturn LoadLevel(const char* _filepath);
+	void Renderer::ParseFromFile();
+	std::string OpenFile();
 	void CleanUp();
 };

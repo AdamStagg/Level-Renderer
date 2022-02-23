@@ -3,6 +3,7 @@ cbuffer MESH_INDEX
 {
     uint mesh_id;
     uint model_id;
+    uint cam_id;
 };
 struct PS_INPUT
 {
@@ -28,8 +29,8 @@ struct OBJ_ATTRIBUTES
 #define MAX_SUBMESH_PER_DRAW 1024
 struct ShaderData
 {
-    float4 lightDir, lightCol, ambLight, camPos;
-    matrix view, proj;
+    float4 lightDir, lightCol, ambLight, camPos[2];
+    matrix view[2], proj;
 
     matrix worlds[MAX_SUBMESH_PER_DRAW];
     OBJ_ATTRIBUTES attributes[MAX_SUBMESH_PER_DRAW];
@@ -47,7 +48,7 @@ float4 main(PS_INPUT input) : SV_TARGET
     lightRat += frameData[0].ambLight.x;
 
 	//Specular
-    float3 viewdir = normalize(frameData[0].camPos.xyz - input.wld.xyz); //shader swizzling
+    float3 viewdir = normalize(frameData[0].camPos[cam_id].xyz - input.wld.xyz); //shader swizzling
     float3 vec = normalize((-frameData[0].lightDir.xyz) + viewdir);
     float intensity = max(pow(clamp(dot(input.nrm, vec), 0, 1), frameData[0].attributes[mesh_id].Ns), 0);
     float3 reflectedLight = frameData[0].lightCol.xyz * frameData[0].attributes[mesh_id].Ks * intensity;

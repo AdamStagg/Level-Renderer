@@ -3,6 +3,7 @@ cbuffer MESH_INDEX
 {
     uint mesh_id;
     uint model_id;
+    uint cam_id;
 };
 struct VS_INPUT
 {
@@ -35,8 +36,8 @@ struct OBJ_ATTRIBUTES
 #define MAX_SUBMESH_PER_DRAW 1024
 struct ShaderData
 {
-    float4 lightDir, lightCol, ambLight, camPos;
-    matrix view, proj;
+    float4 lightDir, lightCol, ambLight, camPos[2];
+    matrix view[2], proj;
 
     matrix worlds[MAX_SUBMESH_PER_DRAW];
     OBJ_ATTRIBUTES attributes[MAX_SUBMESH_PER_DRAW];
@@ -54,7 +55,7 @@ PS_INPUT main(VS_INPUT input, uint instance_id : SV_InstanceID)
     output.pos = mul(frameData[0].worlds[model_id + instance_id], output.pos);
     output.wld = output.pos.xyz;
     //put the position into perspective space
-    output.pos = mul(frameData[0].view, output.pos);
+    output.pos = mul(frameData[0].view[cam_id], output.pos);
     output.pos = mul(frameData[0].proj, output.pos);
     //calculate the normals
     output.nrm = mul(frameData[0].worlds[model_id + instance_id], float4(output.nrm, 0)).xyz;

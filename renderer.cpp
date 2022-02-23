@@ -1,5 +1,7 @@
 #include "renderer.h"
 #include "h2bParser.h"
+#include <Windows.h>
+#include <string.h>
 
 Renderer::Renderer(GW::SYSTEM::GWindow _win, GW::GRAPHICS::GVulkanSurface _vlk)
 {
@@ -12,50 +14,47 @@ Renderer::Renderer(GW::SYSTEM::GWindow _win, GW::GRAPHICS::GVulkanSurface _vlk)
 
 	//Object creation
 	timer = XTime();
-	GW::MATH::GMatrix proxy; proxy.Create();
-	GW::MATH::GVector proxyV; proxyV.Create();
+	
 
 	//WVP matrix init
-	world = GW::MATH::GIdentityMatrixF;
 
 	iProxy.Create(win);
 	cProxy.Create();
+	mProxy.Create();
+	vProxy.Create();
+	
+	viewMatrices.resize(2);
+	camPositions.resize(2);
+
+
 
 	GW::MATH::GVECTORF eye = { 17,  17,  20, 1 };
+	camPositions[0] = eye;
 	GW::MATH::GVECTORF at = { 0, 0, 0, 1 };
 	GW::MATH::GVECTORF up = { 0, 1, 0, 1 };
-	proxy.LookAtLHF(eye, at, up, view);
+	mProxy.LookAtLHF(eye, at, up, viewMatrices[0]);
 
-//	GW::MATH::GMATRIXF cam = { 0.6859,  0.0000,  0.7277, 0.0000,
-		//	-0.3240,  0.8954,  0.3054, 0.0000,
-			//-0.6516, -0.4453,  0.6142, 0.0000,
-			//-1.6411,  5.9583, -6.9258, 1.0000 };
+	eye = { 17, 10, 20, 1 };
+	camPositions[1] = eye;
+	mProxy.LookAtLHF(eye, at, up, viewMatrices[1]);
 
-	//proxy.InverseF(cam, view);
 	float ar;
 	vlk.GetAspectRatio(ar);
-	proxy.ProjectionDirectXLHF(65 * DegToRad, ar, 0.1, 100, proj);
+	mProxy.ProjectionDirectXLHF(65 * DegToRad, ar, 0.1, 100, shaderData.proj);
 
 	//Light Initialization
 	lightPos = { -1, -1, 2, 0 };
-	proxyV.NormalizeF(lightPos, lightPos);
+	vProxy.NormalizeF(lightPos, lightPos);
 	lightPos.w = 1;
 	lightCol = { 0.9f, 0.9f, 1.0f, 1.0f };
 	GW::MATH::GVECTORF ambientLight = { 0.25f, 0.25f, 0.35f, 0 };
 
-	//Shader data for storage buffer
-	shaderData = {};
 	//shaderData.view = view;
-	shaderData.proj = proj;
 	shaderData.lightDir = lightPos;
 	shaderData.lightCol = lightCol;
-	shaderData.matricies[0] = world;
+	shaderData.matricies[0] = GW::MATH::GIdentityMatrixF;
 	shaderData.ambLight = ambientLight;
-	shaderData.camPos = eye;
-	/*for (size_t i = 0; i < FSLogo_materialcount; i++)
-	{
-		std::memcpy(&shaderData.materials[i], &FSLogo_materials[i].attrib, sizeof(FSLogo_materials[i].attrib));
-	}*/
+	//shaderData.camPos[0] = eye;
 
 
 	/***************** GEOMETRY INTIALIZATION ******************/
@@ -67,83 +66,10 @@ Renderer::Renderer(GW::SYSTEM::GWindow _win, GW::GRAPHICS::GVulkanSurface _vlk)
 	//Load the initial level
 	Renderer::LoadLevel("../levels/GameLevel.txt");
 
+	H2B::Parser parser;	
+	Renderer::ParseFromFile();
 
-	std::vector<Vertex> verts;
-	std::vector<int> indices;
-	H2B::Parser parser;
-	std::vector<GW::MATH::GMATRIXF> worlds;
-	std::vector<OBJATTRIBUTES> materials;
-	
-	for (auto& item : models)
-	{
-		//read the h2b file
-		bool parseSuccess = parser.Parse(std::string("../assets/" + item.first + ".h2b").c_str());
-
-		//if failed, continue
-		if (!parseSuccess)
-			continue;
-
-		//copy vertices
-		item.second.vertOffset = verts.size();
-		
-		for (size_t i = 0; i < parser.vertices.size(); i++)
-		{
-			verts.push_back((Vertex&)parser.vertices[i]);
-		}
-		item.second.vertCount = verts.size() - item.second.vertOffset;
-
-		//copy indices
-		item.second.indexOffset = indices.size();
-		indices.insert(indices.end(), parser.indices.begin(), parser.indices.end());
-		item.second.indexCount = indices.size() - item.second.indexOffset;
-
-		//copy counts
-		item.second.materialCount = parser.materialCount;
-		item.second.meshCount = parser.meshCount;
-
-		// Copy mateirals
-		item.second.materialOffset = materials.size();
-		for (size_t i = 0; i < item.second.materialCount; i++)
-		{
-			OBJATTRIBUTES att = (OBJATTRIBUTES&)parser.materials[i].attrib;
-
-			if (att.Ns == 0)
-			{
-				att.Ns = 32;
-			}
-
-			materials.push_back(att);
-
-		}
-
-		// Copy mesh and batch
-		for (size_t i = 0; i < item.second.meshCount; item.second.meshes.push_back(parser.meshes[i]), i++);
-		for (size_t i = 0; i < parser.batches.size(); item.second.batches.push_back(parser.batches[i]), i++);
-
-		//Copy world matrices
-		item.second.matOffset = worlds.size();
-		for (size_t i = 0; i < item.second.matrices.size(); worlds.push_back(item.second.matrices[i]), i++);
-		item.second.matCount = item.second.matrices.size();
-	}
-
-	//Copy materials and world matrices to the shader data
-	for (size_t i = 0; i < worlds.size(); shaderData.matricies[i] = worlds[i], i++);
-	for (size_t i = 0; i < materials.size(); shaderData.materials[i] = materials[i], i++);
-
-
-	// Create Vertex Buffer
-	// Transfer triangle data to the vertex buffer. (staging would be prefered here)
-	GvkHelper::create_buffer(physicalDevice, device, verts.size() * sizeof(Vertex),
-		VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-		VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &vertexHandle, &vertexData);
-	GvkHelper::write_to_buffer(device, vertexData, verts.data(), verts.size() * sizeof(Vertex));
-
-	// Create Index Buffer
-	// Transfer index data to index buffer
-	GvkHelper::create_buffer(physicalDevice, device, sizeof(int) * indices.size(),
-		VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-		VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &indexHandle, &indexData);
-	GvkHelper::write_to_buffer(device, indexData, indices.data(), sizeof(int) * indices.size());
+	Renderer::CreateVertexIndexBuffers(physicalDevice);
 
 	//Initialize storage buffer vectors
 	unsigned frameCount;
@@ -370,8 +296,8 @@ Renderer::Renderer(GW::SYSTEM::GWindow _win, GW::GRAPHICS::GVulkanSurface _vlk)
 		descriptor_set[i].descriptorCount = 1;
 		descriptor_set[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 		descriptor_set[i].dstArrayElement = 0;
+		vkUpdateDescriptorSets(device, 1, &descriptor_set[i], 0, VK_NULL_HANDLE);
 	}
-	vkUpdateDescriptorSets(device, 1, descriptor_set.data(), 0, VK_NULL_HANDLE);
 
 	// Push Constants
 	VkPushConstantRange push_constant_range = {};
@@ -418,15 +344,6 @@ Renderer::Renderer(GW::SYSTEM::GWindow _win, GW::GRAPHICS::GVulkanSurface _vlk)
 
 void Renderer::Render()
 {
-
-	//create proxy
-	GW::MATH::GMatrix proxy; proxy.Create();
-
-	// Rotate the world matrix
-	proxy.RotateYGlobalF(world, timer.Delta(), world);
-	//shaderData.matricies[1] = world;
-	shaderData.view = view;
-	shaderData.camPos = camPos;
 	// grab the current Vulkan commandBuffer
 	unsigned int currentBuffer;
 	vlk.GetSwapchainCurrentImage(currentBuffer);
@@ -437,11 +354,11 @@ void Renderer::Render()
 	win.GetClientWidth(width);
 	win.GetClientHeight(height);
 	// setup the pipeline's dynamic settings
-	VkViewport viewport = {
-		0, 0, static_cast<float>(width), static_cast<float>(height), 0, 1
+	VkViewport viewport[2] = {
+		{0, 0, static_cast<float>(width), static_cast<float>(height), 0.25f, 1},
+		{0, 0, static_cast<float>(width) / 3, static_cast<float>(height) / 3, 0, 0.25f}
 	};
 	VkRect2D scissor = { {0, 0}, {width, height} };
-	vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
 	vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 
@@ -449,22 +366,31 @@ void Renderer::Render()
 	VkDeviceSize offsets[] = { 0 };
 	vkCmdBindVertexBuffers(commandBuffer, 0, 1, &/*models["Grass_Flat"].*/vertexHandle, offsets);
 	vkCmdBindIndexBuffer(commandBuffer, /*models["Grass_Flat"].*/indexHandle, 0, VK_INDEX_TYPE_UINT32);
-	for (size_t i = 0; i < storageData.size(); i++)
-	{
-		GvkHelper::write_to_buffer(device, storageData[i], &shaderData, sizeof(shaderData));
-	}
-	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, descriptorSets.data(), 0, VK_NULL_HANDLE);
+	//vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[currentBuffer], 0, VK_NULL_HANDLE);
 	// Draw submeshes
-
-	for (auto item : models)
+	for (size_t i = 0; i < viewMatrices.size(); i++)
 	{
-		for (size_t i = 0; i < item.second.meshCount; i++)
+		shaderData.view[i] = viewMatrices[i];
+		shaderData.camPos[i] = camPositions[i];
+	}
+
+	GvkHelper::write_to_buffer(device, storageData[currentBuffer], &shaderData, sizeof(shaderData));
+	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[currentBuffer], 0, VK_NULL_HANDLE);
+	for (size_t camera = 0 ; camera < viewMatrices.size(); camera++)
+	{
+		vkCmdSetViewport(commandBuffer, 0, 1, &viewport[camera]);
+		pc.camIndex = camera;
+
+		for (auto item : models)
 		{
-			pc.materialIndex = item.second.materialOffset + item.second.meshes[i].materialIndex;
-			
-			pc.modelIndex = item.second.matOffset;
-			vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_ALL_GRAPHICS, 0, sizeof(PUSH_CONSTANTS), &pc);
-			vkCmdDrawIndexed(commandBuffer, item.second.meshes[i].drawInfo.indexCount, item.second.matCount, item.second.meshes[i].drawInfo.indexOffset + item.second.indexOffset, item.second.vertOffset, 0);
+			for (size_t i = 0; i < item.second.meshCount; i++)
+			{
+				pc.materialIndex = item.second.materialOffset + item.second.meshes[i].materialIndex;
+
+				pc.modelIndex = item.second.matOffset;
+				vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_ALL_GRAPHICS, 0, sizeof(PUSH_CONSTANTS), &pc);
+				vkCmdDrawIndexed(commandBuffer, item.second.meshes[i].drawInfo.indexCount, item.second.matCount, item.second.meshes[i].drawInfo.indexOffset + item.second.indexOffset, item.second.vertOffset, 0);
+			}
 		}
 	}
 }
@@ -530,16 +456,15 @@ InputData Renderer::GetAllInput() {
 void Renderer::UpdateCamera(InputData input, float cameraSpeed) {
 	
 	//Create proxy
-	GW::MATH::GMatrix proxy;
-	proxy.Create();
-
+	mProxy.RotateYLocalF(viewMatrices[1], timer.Delta() * .5f, viewMatrices[1]);
+	camPositions[1] = viewMatrices[1].row4;
 	//Inverse camera
-	proxy.InverseF(view, view);
+	mProxy.InverseF(viewMatrices[0], viewMatrices[0]);
 
 	float perFrameSpeed = cameraSpeed * timer.Delta();
 
 	//up and down
-	view.row4.y += (input.kSpace - input.kShift + input.cRTrigger - input.cLTrigger) * perFrameSpeed;
+	viewMatrices[0].row4.y += (input.kSpace - input.kShift + input.cRTrigger - input.cLTrigger) * perFrameSpeed;
 
 	//forward/backward
 	float totalZChange = input.kW - input.kS + input.cLYAxis;
@@ -550,28 +475,28 @@ void Renderer::UpdateCamera(InputData input, float cameraSpeed) {
 	//apply translations
 	GW::MATH::GVECTORF translation = { totalXChange * perFrameSpeed, 0, totalZChange * perFrameSpeed, 0 };
 	GW::MATH::GMATRIXF translationMat;
-	proxy.TranslateGlobalF(GW::MATH::GIdentityMatrixF, translation, translationMat);
-	proxy.MultiplyMatrixF(translationMat, view, view);
+	mProxy.TranslateGlobalF(GW::MATH::GIdentityMatrixF, translation, translationMat);
+	mProxy.MultiplyMatrixF(translationMat, viewMatrices[0], viewMatrices[0]);
 
 	//rotation
 	float rotSpeed = PI * timer.Delta();
 
 	float pitch = input.winFOV * (input.mY / input.winHeight) - rotSpeed * input.cRYAxis;
 	GW::MATH::GMATRIXF updown = GW::MATH::GIdentityMatrixF;
-	proxy.RotationYawPitchRollF(0, pitch, 0, updown);
+	mProxy.RotationYawPitchRollF(0, pitch, 0, updown);
 
 	float yaw = input.winFOV * input.winAR * (input.mX / input.winWidth) + (rotSpeed * input.cRXAxis);
 	GW::MATH::GMATRIXF leftright = GW::MATH::GIdentityMatrixF;
-	proxy.RotationYawPitchRollF(yaw, 0, 0, leftright);
+	mProxy.RotationYawPitchRollF(yaw, 0, 0, leftright);
 
-	proxy.MultiplyMatrixF(updown, view, view); //local pitch
-	GW::MATH::GVECTORF camPos = view.row4; //store position
-	proxy.MultiplyMatrixF(view, leftright, view); //global yaw
-	this->camPos = camPos;
-	view.row4 = camPos;	//restore position
+	mProxy.MultiplyMatrixF(updown, viewMatrices[0], viewMatrices[0]); //local pitch
+	GW::MATH::GVECTORF camPos = viewMatrices[0].row4; //store position
+	mProxy.MultiplyMatrixF(viewMatrices[0], leftright, viewMatrices[0]); //global yaw
+	this->camPositions[0] = camPos;
+	viewMatrices[0].row4 = camPos;	//restore position
 
 	//Reinverse camera
-	proxy.InverseF(view, view);
+	mProxy.InverseF(viewMatrices[0], viewMatrices[0]);
 }
 
 void Renderer::SignalTimer()
@@ -591,6 +516,23 @@ std::string Renderer::ShaderAsString(const char* shaderFilePath) {
 	else
 		std::cout << "ERROR: Shader Source File \"" << shaderFilePath << "\" Not Found!" << std::endl;
 	return output;
+}
+
+void Renderer::CreateVertexIndexBuffers(VkPhysicalDevice& physicalDevice)
+{
+	// Create Vertex Buffer
+	// Transfer triangle data to the vertex buffer. (staging would be prefered here)
+	GvkHelper::create_buffer(physicalDevice, device, verts.size() * sizeof(Vertex),
+		VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+		VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &vertexHandle, &vertexData);
+	GvkHelper::write_to_buffer(device, vertexData, verts.data(), verts.size() * sizeof(Vertex));
+
+	// Create Index Buffer
+	// Transfer index data to index buffer
+	GvkHelper::create_buffer(physicalDevice, device, sizeof(int) * indices.size(),
+		VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+		VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &indexHandle, &indexData);
+	GvkHelper::write_to_buffer(device, indexData, indices.data(), sizeof(int) * indices.size());
 }
 
 GW::GReturn Renderer::LoadLevel(const char* filepath) 
@@ -637,6 +579,125 @@ GW::GReturn Renderer::LoadLevel(const char* filepath)
 	}
 
 	return GW::GReturn::SUCCESS;
+}
+
+void Renderer::ParseFromFile()
+{
+	H2B::Parser parser;
+	std::vector<GW::MATH::GMATRIXF> worlds;
+	std::vector<OBJATTRIBUTES> materials;
+	for (auto& item : models)
+	{
+		//read the h2b file
+		bool parseSuccess = parser.Parse(std::string("../assets/" + item.first + ".h2b").c_str());
+
+		//if failed, continue
+		if (!parseSuccess)
+			continue;
+
+		//copy vertices
+		item.second.vertOffset = verts.size();
+
+		for (size_t i = 0; i < parser.vertices.size(); i++)
+		{
+			verts.push_back((Vertex&)parser.vertices[i]);
+		}
+		item.second.vertCount = verts.size() - item.second.vertOffset;
+
+		//copy indices
+		item.second.indexOffset = indices.size();
+		indices.insert(indices.end(), parser.indices.begin(), parser.indices.end());
+		item.second.indexCount = indices.size() - item.second.indexOffset;
+
+		//copy counts
+		item.second.materialCount = parser.materialCount;
+		item.second.meshCount = parser.meshCount;
+
+		// Copy mateirals
+		item.second.materialOffset = materials.size();
+		for (size_t i = 0; i < item.second.materialCount; i++)
+		{
+			OBJATTRIBUTES att = (OBJATTRIBUTES&)parser.materials[i].attrib;
+
+			if (att.Ns == 0)
+			{
+				att.Ns = 2048;
+			}
+
+			materials.push_back(att);
+
+		}
+
+		// Copy mesh and batch
+		for (size_t i = 0; i < item.second.meshCount; item.second.meshes.push_back(parser.meshes[i]), i++);
+		for (size_t i = 0; i < parser.batches.size(); item.second.batches.push_back(parser.batches[i]), i++);
+
+		//Copy world matrices
+		item.second.matOffset = worlds.size();
+		for (size_t i = 0; i < item.second.matrices.size(); worlds.push_back(item.second.matrices[i]), i++);
+		item.second.matCount = item.second.matrices.size();
+	}
+
+	//Copy materials and world matrices to the shader data
+	for (size_t i = 0; i < worlds.size(); shaderData.matricies[i] = worlds[i], i++);
+	for (size_t i = 0; i < materials.size(); shaderData.materials[i] = materials[i], i++);
+}
+
+void Renderer::Changelevel(InputData input)
+{
+	if (input.kO == 0 || input.kCtrl == 0)
+	{
+		return;
+	}
+	std::string newFilePath = Renderer::OpenFile();
+	if (newFilePath == "")
+	{
+		return;
+	}
+	vkDeviceWaitIdle(device);
+	vkDestroyBuffer(device, vertexHandle, nullptr);
+	vkFreeMemory(device, vertexData, nullptr);
+	vkDestroyBuffer(device, indexHandle, nullptr);
+	vkFreeMemory(device, indexData, nullptr);
+
+	
+	verts.clear();
+	indices.clear();
+	models.clear();
+
+	VkPhysicalDevice physicalDevice = nullptr;
+	vlk.GetPhysicalDevice((void**)&physicalDevice);
+	
+	Renderer::LoadLevel(newFilePath.c_str());
+	Renderer::ParseFromFile();
+	Renderer::CreateVertexIndexBuffers(physicalDevice);
+	
+
+}
+
+std::string Renderer::OpenFile()
+{
+	OPENFILENAME ofn = { 0 };
+	TCHAR szFile[260] = { 0 };
+	// Initialize remaining fields of OPENFILENAME structure
+	ofn.lStructSize = sizeof(ofn);
+	//ofn.hwndOwner = hWnd;
+	ofn.lpstrFile = szFile;
+	ofn.nMaxFile = sizeof(szFile);
+	ofn.lpstrFilter = L"All\0*.*\0Text\0*.txt\0";
+	ofn.nFilterIndex = 2;
+	ofn.lpstrFileTitle = NULL;
+	ofn.nMaxFileTitle = 0;
+	ofn.lpstrInitialDir = NULL;
+	ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
+
+	if (GetOpenFileName(&ofn) == TRUE)
+	{
+		// use ofn.lpstrFile here
+		std::wstring wide = ofn.lpstrFile;
+		return std::string(wide.begin(), wide.end());
+	}
+	return "";	
 }
 
 void Renderer::CleanUp()
