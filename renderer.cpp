@@ -64,13 +64,153 @@ Renderer::Renderer(GW::SYSTEM::GWindow _win, GW::GRAPHICS::GVulkanSurface _vlk)
 	vlk.GetDevice((void**)&device);
 	vlk.GetPhysicalDevice((void**)&physicalDevice);
 
+
 	//Load the initial level
+	shaderData.matricies[0] = GW::MATH::GIdentityMatrixF;
+
 	Renderer::LoadLevel("../levels/GameLevel.txt");
-
-	H2B::Parser parser;	
 	Renderer::ParseFromFile();
-
 	Renderer::CreateVertexIndexBuffers(physicalDevice);
+
+	//Generate collision data
+	Tree collisionHierarchy;
+	for (auto& model : models)
+	{
+		//break;
+		for (size_t i = 0; i < model.second.matrixCount; i++)
+		{
+			collisionHierarchy.AddNode(
+				{ 
+					[&]() -> GW::MATH::GVECTORF
+					{
+						GW::MATH::GVECTORF result;
+						model.second.boundBoxCenter.w = 1;
+						vProxy.VectorXMatrixF(model.second.boundBoxCenter, model.second.matrices[i], result);
+						return result;
+					}(),
+					[&]() -> GW::MATH::GVECTORF
+					{
+						GW::MATH::GVECTORF result;
+						model.second.boundBoxExtents.w = 1;
+						vProxy.VectorXMatrixF(model.second.boundBoxExtents, model.second.matrices[i], result);
+						return result;
+					}()
+				}
+			);
+		}
+	}
+
+	//collisionHierarchy.AddNode(
+	//	{
+	//		[&]() -> GW::MATH::GVECTORF
+	//		{
+	//			GW::MATH::GVECTORF result;
+	//			models["Prop_Fence_Curve_3x3"].boundBoxCenter.w = 1;
+	//			vProxy.VectorXMatrixF(models["Prop_Fence_Curve_3x3"].boundBoxCenter, models["Prop_Fence_Curve_3x3"].matrices[0], result);
+	//			return result;
+	//		}(),
+	//		[&]() -> GW::MATH::GVECTORF
+	//		{
+	//			GW::MATH::GVECTORF result;
+	//			models["Prop_Fence_Curve_3x3"].boundBoxExtents.w = 1;
+	//			vProxy.VectorXMatrixF(models["Prop_Fence_Curve_3x3"].boundBoxExtents, models["Prop_Fence_Curve_3x3"].matrices[0], result);
+	//			return result;
+	//		}()
+	//	}
+	//);
+
+	/*collisionHierarchy.AddNode(
+		{
+			[&]() -> GW::MATH::GVECTORF
+			{
+				GW::MATH::GVECTORF result;
+				models["Grass_Flat"].boundBoxCenter.w = 1;
+				vProxy.VectorXMatrixF(models["Grass_Flat"].boundBoxCenter, models["Grass_Flat"].matrices[2], result);
+				return result;
+			}(),
+			[&]() -> GW::MATH::GVECTORF
+			{
+				GW::MATH::GVECTORF result;
+				models["Grass_Flat"].boundBoxExtents.w = 1;
+				vProxy.VectorXMatrixF(models["Grass_Flat"].boundBoxExtents, models["Grass_Flat"].matrices[2], result);
+				return result;
+			}()
+		}
+	);
+	collisionHierarchy.AddNode(
+		{
+			[&]() -> GW::MATH::GVECTORF
+			{
+				GW::MATH::GVECTORF result;
+				models["Grass_Flat"].boundBoxCenter.w = 1;
+				vProxy.VectorXMatrixF(models["Grass_Flat"].boundBoxCenter, models["Grass_Flat"].matrices[1], result);
+				return result;
+			}(),
+			[&]() -> GW::MATH::GVECTORF
+			{
+				GW::MATH::GVECTORF result;
+				models["Grass_Flat"].boundBoxExtents.w = 1;
+				vProxy.VectorXMatrixF(models["Grass_Flat"].boundBoxExtents, models["Grass_Flat"].matrices[1], result);
+				return result;
+			}()
+		}
+	);*/
+
+	collisionHierarchy.GetDrawInfo(vertsLine, indicesLine);
+
+	//vertsLine.clear();
+	//indicesLine.clear();
+
+	//int* ind = collisionHierarchy.root->data.GetIndices();
+	//for (size_t i = 0; i < 24; i++)
+	//{
+	//	indicesLine.push_back(ind[i]);
+	//}
+
+
+	//BoundingBox box = {
+	//				[&]() -> GW::MATH::GVECTORF
+	//				{
+	//					GW::MATH::GVECTORF result;
+	//					models["Grass_Flat"].boundBoxCenter.w = 1;
+	//					vProxy.VectorXMatrixF(models["Grass_Flat"].boundBoxCenter, models["Grass_Flat"].matrices[0], result);
+	//					return result;
+	//				}(),
+	//				[&]() -> GW::MATH::GVECTORF
+	//				{
+	//					GW::MATH::GVECTORF result;
+	//					models["Grass_Flat"].boundBoxExtents.w = 1;
+	//					vProxy.VectorXMatrixF(models["Grass_Flat"].boundBoxExtents, models["Grass_Flat"].matrices[0], result);
+	//					return result;
+	//				}()
+	//};
+	//Vertex* vert = collisionHierarchy.root->data.GetVertices();
+	//for (size_t i = 0; i < 8; i++)
+	//{
+	//	Vertex temp = vert[i];
+	//	vertsLine.push_back(vert[i]);
+	//}
+	//int* ind = collisionHierarchy.root->data.GetIndices();
+	//for (size_t i = 0; i < 24; i++)
+	//{
+	//	indicesLine.push_back(ind[i]);
+	//}
+
+	//delete[] ind;
+	//delete[] vert;
+
+	//Create vertex buffer for collision lines
+	GvkHelper::create_buffer(physicalDevice, device, sizeof(vertsLine[0]) * vertsLine.size(),
+		VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+		VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &vertexLineHandle, &vertexLineData);
+	GvkHelper::write_to_buffer(device, vertexLineData, vertsLine.data(), sizeof(vertsLine[0]) * vertsLine.size());
+
+	//Create index buffer for collision lines
+	GvkHelper::create_buffer(physicalDevice, device, sizeof(indicesLine[0]) * indicesLine.size(),
+		VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+		VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &indexLineHandle, &indexLineData);
+	GvkHelper::write_to_buffer(device, indexLineData, indicesLine.data(), sizeof(indicesLine[0]) * indicesLine.size());
+
 
 	//Initialize storage buffer vectors
 	unsigned frameCount;
@@ -334,6 +474,11 @@ Renderer::Renderer(GW::SYSTEM::GWindow _win, GW::GRAPHICS::GVulkanSurface _vlk)
 	vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1,
 		&pipeline_create_info, nullptr, &pipeline);
 
+	//Create pipeline state for lines
+	assembly_create_info.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
+	vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1,
+		&pipeline_create_info, nullptr, &pipelineLine);
+
 	/***************** CLEANUP / SHUTDOWN ******************/
 	// GVulkanSurface will inform us when to release any allocated resources
 	shutdown.Create(vlk, [&]() {
@@ -361,13 +506,10 @@ void Renderer::Render()
 	};
 	VkRect2D scissor = { {0, 0}, {width, height} };
 	vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
-	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 
 	// now we can draw
 	VkDeviceSize offsets[] = { 0 };
-	vkCmdBindVertexBuffers(commandBuffer, 0, 1, &/*models["Grass_Flat"].*/vertexHandle, offsets);
-	vkCmdBindIndexBuffer(commandBuffer, /*models["Grass_Flat"].*/indexHandle, 0, VK_INDEX_TYPE_UINT32);
-	//vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[currentBuffer], 0, VK_NULL_HANDLE);
+	
 	// Draw submeshes
 	for (size_t i = 0; i < viewMatrices.size(); i++)
 	{
@@ -379,6 +521,12 @@ void Renderer::Render()
 	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[currentBuffer], 0, VK_NULL_HANDLE);
 	for (size_t camera = 0 ; camera < viewMatrices.size(); camera++)
 	{
+		//Bind data for triangles / models
+		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+		vkCmdBindVertexBuffers(commandBuffer, 0, 1, &/*models["Grass_Flat"].*/vertexHandle, offsets);
+		vkCmdBindIndexBuffer(commandBuffer, /*models["Grass_Flat"].*/indexHandle, 0, VK_INDEX_TYPE_UINT32);
+
+
 		vkCmdSetViewport(commandBuffer, 0, 1, &viewport[camera]);
 		pc.camIndex = camera;
 
@@ -390,9 +538,18 @@ void Renderer::Render()
 
 				pc.modelIndex = item.second.matOffset;
 				vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_ALL_GRAPHICS, 0, sizeof(PUSH_CONSTANTS), &pc);
-				vkCmdDrawIndexed(commandBuffer, item.second.meshes[i].drawInfo.indexCount, item.second.matCount, item.second.meshes[i].drawInfo.indexOffset + item.second.indexOffset, item.second.vertOffset, 0);
+				vkCmdDrawIndexed(commandBuffer, item.second.meshes[i].drawInfo.indexCount, item.second.matrixCount, item.second.meshes[i].drawInfo.indexOffset + item.second.indexOffset, item.second.vertOffset, 0);
 			}
 		}
+
+		//Bind data for collision lines
+		pc.materialIndex = 0;
+		pc.modelIndex = 0;
+		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLine);
+		vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexLineHandle, offsets);
+		vkCmdBindIndexBuffer(commandBuffer, indexLineHandle, 0, VK_INDEX_TYPE_UINT32);
+		vkCmdDrawIndexed(commandBuffer, indicesLine.size(), 1, 0, 0, 0);
+
 	}
 }
 
@@ -576,8 +733,8 @@ GW::GReturn Renderer::LoadLevel(const char* filepath)
 			if (models.find(meshName) == models.end())
 			{
 
-				GW::MATH::GVECTORF bbCenter = {};
-				GW::MATH::GVECTORF bbExtents = {};
+				GW::MATH::GVECTORF bbCenter = {0, 0, 0, 1};
+				GW::MATH::GVECTORF bbExtents = {0, 0, 0, 1};
 				{
 					std::getline(stream, line);
 					size_t start = line.find('(') + 1;
@@ -664,7 +821,7 @@ void Renderer::ParseFromFile()
 		//Copy world matrices
 		item.second.matOffset = worlds.size();
 		for (size_t i = 0; i < item.second.matrices.size(); worlds.push_back(item.second.matrices[i]), i++);
-		item.second.matCount = item.second.matrices.size();
+		item.second.matrixCount = item.second.matrices.size();
 	}
 
 	//Copy materials and world matrices to the shader data
@@ -735,7 +892,9 @@ void Renderer::CleanUp()
 	vkDeviceWaitIdle(device);
 	// Release allocated buffers, shaders & pipeline
 	vkDestroyBuffer(device, indexHandle, nullptr);
+	vkDestroyBuffer(device, indexLineHandle, nullptr);
 	vkFreeMemory(device, indexData, nullptr);
+	vkFreeMemory(device, indexLineData, nullptr);
 	for (size_t i = 0; i < storageData.size(); i++)
 	{
 		vkDestroyBuffer(device, storageHandle[i], nullptr);
@@ -743,11 +902,14 @@ void Renderer::CleanUp()
 	}
 
 	vkDestroyBuffer(device, vertexHandle, nullptr);
+	vkDestroyBuffer(device, vertexLineHandle, nullptr);
 	vkFreeMemory(device, vertexData, nullptr);
+	vkFreeMemory(device, vertexLineData, nullptr);
 	vkDestroyShaderModule(device, vertexShader, nullptr);
 	vkDestroyShaderModule(device, pixelShader, nullptr);
 	vkDestroyDescriptorSetLayout(device, setLayout, nullptr);
 	vkDestroyDescriptorPool(device, descriptorPool, nullptr);
 	vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
 	vkDestroyPipeline(device, pipeline, nullptr);
+	vkDestroyPipeline(device, pipelineLine, nullptr);
 }

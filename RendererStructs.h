@@ -74,7 +74,7 @@ struct modelInfo
 {
 	std::vector<GW::MATH::GMATRIXF> matrices;
 	unsigned matOffset;
-	unsigned matCount;
+	unsigned matrixCount;
 
 	unsigned vertOffset;
 	unsigned vertCount;

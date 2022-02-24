@@ -2,7 +2,7 @@
 #include "BoundingBox.h"
 class Tree
 {
-
+public:
 	struct Node
 	{
 		BoundingBox data;
@@ -19,15 +19,18 @@ class Tree
 			this->parent = parent;
 		}
 	};
-
-	Node* root;
+	Node* root = nullptr;
+	unsigned count;
 
 	void Clear(Node* branch);
+	void getDrawInfo(Node* _curr, std::vector<Vertex>& vertices, std::vector<int>& indices);
 
 public:
 	~Tree();
 	Tree();
 	void Clear();
+	unsigned Count();
+	void GetDrawInfo(std::vector<Vertex>& vertices, std::vector<int>& indices);
 	void AddNode(BoundingBox data);
 	void AddNode(BoundingBox data, Node* _curr, Node* _parent);
 	BoundingBox GenerateNewBox(BoundingBox box1, BoundingBox box2);

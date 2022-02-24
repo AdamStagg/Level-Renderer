@@ -34,9 +34,13 @@ class Renderer
 	// what we need at a minimum to draw a triangle
 	VkDevice device = nullptr;
 	VkBuffer vertexHandle = nullptr;
+	VkBuffer vertexLineHandle = nullptr;
 	VkDeviceMemory vertexData = nullptr;
+	VkDeviceMemory vertexLineData = nullptr;
 	VkBuffer indexHandle = nullptr;
+	VkBuffer indexLineHandle = nullptr;
 	VkDeviceMemory indexData = nullptr;
+	VkDeviceMemory indexLineData = nullptr;
 	//std::map<std::string, std::vector<GW::MATH::GMATRIXF>> meshes;
 	std::map<std::string, modelInfo> models;
 
@@ -49,12 +53,15 @@ class Renderer
 	std::vector<VkDeviceMemory> storageData;
 
 	std::vector<Vertex> verts;
+	std::vector<Vertex> vertsLine;
 	std::vector<int> indices;
+	std::vector<int> indicesLine;
 
 	VkShaderModule vertexShader = nullptr;
 	VkShaderModule pixelShader = nullptr;
 	// pipeline settings for drawing (also required)
 	VkPipeline pipeline = nullptr;
+	VkPipeline pipelineLine = nullptr;
 	VkPipelineLayout pipelineLayout = nullptr;
 	VkDescriptorSetLayout setLayout;
 	VkDescriptorPool descriptorPool;
