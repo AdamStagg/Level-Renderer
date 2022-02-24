@@ -51,14 +51,19 @@ int main()
 #endif
 		{
 			Renderer renderer(win, vulkan);
+			bool moveCamera = true;
 			while (+win.ProcessWindowEvents())
 			{
 				if (+vulkan.StartFrame(2, clrAndDepth))
 				{
 					renderer.SignalTimer();
-					InputData input = renderer.GetAllInput();
-					renderer.Changelevel(input);
-					renderer.UpdateCamera(input, 3.0f);
+					if (moveCamera)
+					{
+						InputData input = renderer.GetAllInput();
+						if (input.kO != 0) moveCamera = false;
+						renderer.Changelevel(input);
+						renderer.UpdateCamera(input, 3.0f);
+					} 
 					renderer.Render();
 					vulkan.EndFrame(true);
 				}

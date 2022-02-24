@@ -3,7 +3,7 @@
 #include "Defines.h"
 #include <vector>
 #include "h2bParser.h"
-
+#include "vulkan/vulkan_core.h"
 
 struct OBJATTRIBUTES
 {
@@ -89,4 +89,6 @@ struct modelInfo
 	std::vector<H2B::MESH> meshes;
 
 	std::vector<H2B::BATCH> batches;
+
+	GW::MATH::GVECTORF boundBoxCenter, boundBoxExtents;
 };

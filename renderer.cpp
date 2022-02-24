@@ -2,6 +2,7 @@
 #include "h2bParser.h"
 #include <Windows.h>
 #include <string.h>
+#include "Tree.h"
 
 Renderer::Renderer(GW::SYSTEM::GWindow _win, GW::GRAPHICS::GVulkanSurface _vlk)
 {
@@ -173,7 +174,7 @@ Renderer::Renderer(GW::SYSTEM::GWindow _win, GW::GRAPHICS::GVulkanSurface _vlk)
 	rasterization_create_info.rasterizerDiscardEnable = VK_FALSE;
 	rasterization_create_info.polygonMode = VK_POLYGON_MODE_FILL;
 	rasterization_create_info.lineWidth = 1.0f;
-	rasterization_create_info.cullMode = VK_CULL_MODE_NONE; // TURN BACK ON WHEN FIXING THE MODELS
+	rasterization_create_info.cullMode = VK_CULL_MODE_BACK_BIT; // TURN BACK ON WHEN FIXING THE MODELS
 	rasterization_create_info.frontFace = VK_FRONT_FACE_CLOCKWISE;
 	rasterization_create_info.depthClampEnable = VK_FALSE;
 	rasterization_create_info.depthBiasEnable = VK_FALSE;
@@ -562,7 +563,6 @@ GW::GReturn Renderer::LoadLevel(const char* filepath)
 			{
 				//get line and trim it to only numbers or ,
 				std::getline(stream, line);
-				std::remove(line.begin(), line.end(), ' ');
 				size_t start = line.find('(') + 1;
 				line = line.substr(start, line.find(')') - start);
 				//get each element of data
@@ -573,7 +573,36 @@ GW::GReturn Renderer::LoadLevel(const char* filepath)
 					line = line.substr(end + 1);
 				}
 			}
+			if (models.find(meshName) == models.end())
+			{
 
+				GW::MATH::GVECTORF bbCenter = {};
+				GW::MATH::GVECTORF bbExtents = {};
+				{
+					std::getline(stream, line);
+					size_t start = line.find('(') + 1;
+					line = line.substr(start, line.find(')') - start);
+					for (size_t j = 0; j < 3; j++)
+					{
+						size_t end = line.find(',');
+						bbCenter.data[j] = std::stof(line.substr(0, end));
+						line = line.substr(end + 1);
+					}
+				}
+				{
+					std::getline(stream, line);
+					size_t start = line.find('(') + 1;
+					line = line.substr(start, line.find(')') - start);
+					for (size_t j = 0; j < 3; j++)
+					{
+						size_t end = line.find(',');
+						bbExtents.data[j] = (std::stof(line.substr(0, end))) * 0.5f;
+						line = line.substr(end + 1);
+					}
+				}
+				models[meshName].boundBoxCenter = bbCenter;
+				vProxy.AddVectorF(bbCenter, bbExtents, models[meshName].boundBoxExtents);
+			}
 			models[meshName].matrices.push_back(worldMatrix);
 		}
 	}
