@@ -23,6 +23,7 @@ Renderer::Renderer(GW::SYSTEM::GWindow _win, GW::GRAPHICS::GVulkanSurface _vlk)
 	cProxy.Create();
 	mProxy.Create();
 	vProxy.Create();
+	gProxy.Create();
 
 	viewMatrices.resize(2);
 	camPositions.resize(2);
@@ -35,9 +36,16 @@ Renderer::Renderer(GW::SYSTEM::GWindow _win, GW::GRAPHICS::GVulkanSurface _vlk)
 	GW::MATH::GVECTORF up = { 0, 1, 0, 1 };
 	mProxy.LookAtLHF(eye, at, up, viewMatrices[0]);
 
-	eye = { 17, 10, 20, 1 };
+	eye = { 15, 9, 30, 1 };
+	at = { -9, -3, 7, 1 };
 	camPositions[1] = eye;
 	mProxy.LookAtLHF(eye, at, up, viewMatrices[1]);
+
+	GW::MATH::GMATRIXF camTrans = GW::MATH::GIdentityMatrixF;
+	camTrans.row4 = { 9, -3, 7, 1 };
+	mProxy.InverseF(camTrans, camTrans);
+	mProxy.MultiplyMatrixF(viewMatrices[1], camTrans, viewMatrices[1]);
+
 
 	float ar;
 	vlk.GetAspectRatio(ar);
@@ -73,12 +81,8 @@ Renderer::Renderer(GW::SYSTEM::GWindow _win, GW::GRAPHICS::GVulkanSurface _vlk)
 	Renderer::CreateVertexIndexBuffers(physicalDevice);
 
 	//Generate collision data
-	Tree collisionHierarchy;
 	for (auto& model : models)
 	{
-		//break;
-		//if (model.first == "Path_Steps_Grass_Edge_Top") continue;
-		//if (model.first == "Prop_Fence_Curve_3x3") break;
 		for (size_t i = 0; i < model.second.matrixCount; i++)
 		{
 			GW::MATH::GVECTORF center;
@@ -92,10 +96,6 @@ Renderer::Renderer(GW::SYSTEM::GWindow _win, GW::GRAPHICS::GVulkanSurface _vlk)
 
 			vProxy.VectorXMatrixF(model.second.boundBoxCenter, rotation, center);
 			vProxy.VectorXMatrixF(model.second.boundBoxExtents, model.second.matrices[i], extent);
-			//extent.x = center.x + std::abs(center.x - extent.x);
-			//extent.y = center.y + std::abs(center.y - extent.y);
-			//extent.z = center.z + std::abs(center.z - extent.z);
-			
 
 			BoundingBox box = { center, extent };
 			Vertex* boxverts = box.GetVertices();
@@ -115,175 +115,17 @@ Renderer::Renderer(GW::SYSTEM::GWindow _win, GW::GRAPHICS::GVulkanSurface _vlk)
 			}
 			center = { (minbound.x + maxbound.x) * 0.5f, (minbound.y + maxbound.y) * 0.5f, (minbound.z + maxbound.z) * 0.5f, 1 };
 			extent = { (maxbound.x - center.x), (maxbound.y - center.y), (maxbound.z - center.z), 0 };
-
 			
-			delete[] boxverts;
-			
-
-
 			vProxy.VectorXMatrixF(center, translation, center);
-			
-			GW::MATH::GMATRIXF t2 = { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -10, -4.75, 3, 1 };
 
-			//vProxy.VectorXMatrixF(center, t2, center);
+			collisionHierarchy.AddNode({ center, extent, model.first, static_cast<int>(model.second.matOffset + i)});
 
-
-			collisionHierarchy.AddNode({ center, extent });
-
+			delete[] boxverts;
 		}
-		//break;
 	}
 
-	//collisionHierarchy.AddNode(
-	//	{
-	//		[&]() -> GW::MATH::GVECTORF
-	//		{
-	//			GW::MATH::GVECTORF result;
-	//			models["Prop_Fence_Curve_3x3"].boundBoxCenter.w = 1;
-	//			vProxy.VectorXMatrixF(models["Prop_Fence_Curve_3x3"].boundBoxCenter, models["Prop_Fence_Curve_3x3"].matrices[0], result);
-	//			return result;
-	//		}(),
-	//		[&]() -> GW::MATH::GVECTORF
-	//		{
-	//			GW::MATH::GVECTORF result;
-	//			models["Prop_Fence_Curve_3x3"].boundBoxExtents.w = 0;
-	//			vProxy.VectorXMatrixF(models["Prop_Fence_Curve_3x3"].boundBoxExtents, models["Prop_Fence_Curve_3x3"].matrices[0], result);
-	//			return result;
-	//		}()
-	//	}
-	//);
-
-	//collisionHierarchy.AddNode(
-	//	{
-	//		[&]() -> GW::MATH::GVECTORF
-	//		{
-	//			GW::MATH::GVECTORF result;
-	//			models["Grass_Flat"].boundBoxCenter.w = 1;
-	//			vProxy.VectorXMatrixF(models["Grass_Flat"].boundBoxCenter, models["Grass_Flat"].matrices[2], result);
-	//			return result;
-	//		}(),
-	//		[&]() -> GW::MATH::GVECTORF
-	//		{
-	//			GW::MATH::GVECTORF result;
-	//			models["Grass_Flat"].boundBoxExtents.w = 1;
-	//			vProxy.VectorXMatrixF(models["Grass_Flat"].boundBoxExtents, models["Grass_Flat"].matrices[2], result);
-	//			return result;
-	//		}()
-	//	}
-	//);
-	//collisionHierarchy.AddNode(
-	//	{
-	//		[&]() -> GW::MATH::GVECTORF
-	//		{
-	//			GW::MATH::GVECTORF result;
-	//			models["Grass_Flat"].boundBoxCenter.w = 1;
-	//			vProxy.VectorXMatrixF(models["Grass_Flat"].boundBoxCenter, models["Grass_Flat"].matrices[1], result);
-	//			return result;
-	//		}(),
-	//		[&]() -> GW::MATH::GVECTORF
-	//		{
-	//			GW::MATH::GVECTORF result;
-	//			models["Grass_Flat"].boundBoxExtents.w = 1;
-	//			vProxy.VectorXMatrixF(models["Grass_Flat"].boundBoxExtents, models["Grass_Flat"].matrices[1], result);
-	//			return result;
-	//		}()
-	//	}
-	//);
-	//collisionHierarchy.AddNode(
-	//	{
-	//		[&]() -> GW::MATH::GVECTORF
-	//		{
-	//			GW::MATH::GVECTORF result;
-	//			models["Grass_Flat"].boundBoxCenter.w = 1;
-	//			vProxy.VectorXMatrixF(models["Grass_Flat"].boundBoxCenter, models["Grass_Flat"].matrices[0], result);
-	//			return result;
-	//		}(),
-	//		[&]() -> GW::MATH::GVECTORF
-	//		{
-	//			GW::MATH::GVECTORF result;
-	//			models["Grass_Flat"].boundBoxExtents.w = 1;
-	//			vProxy.VectorXMatrixF(models["Grass_Flat"].boundBoxExtents, models["Grass_Flat"].matrices[0], result);
-	//			return result;
-	//		}()
-	//	}
-	//);
-	//collisionHierarchy.AddNode(
-	//	{
-	//		[&]() -> GW::MATH::GVECTORF
-	//		{
-	//			GW::MATH::GVECTORF result;
-	//			models["Prop_Bush_3"].boundBoxCenter.w = 1;
-	//			vProxy.VectorXMatrixF(models["Prop_Bush_3"].boundBoxCenter, models["Prop_Bush_3"].matrices[0], result);
-	//			return result;
-	//		}(),
-	//		[&]() -> GW::MATH::GVECTORF
-	//		{
-	//			GW::MATH::GVECTORF result;
-	//			models["Grass_Flat"].boundBoxExtents.w = 1;
-	//			vProxy.VectorXMatrixF(models["Prop_Bush_3"].boundBoxExtents, models["Prop_Bush_3"].matrices[0], result);
-	//			return result;
-	//		}()
-	//	}
-	//);
+	
 	collisionHierarchy.GetDrawInfo(vertsLine, indicesLine);
-	for (size_t i = 0; i < vertsLine.size(); i++)
-	{
-		//vertsLine[i].z = -vertsLine[i].z;
-	}
-	//vertsLine.clear();
-	//indicesLine.clear();
-
-	//int* ind = collisionHierarchy.root->data.GetIndices();
-	//for (size_t i = 0; i < 24; i++)
-	//{
-	//	indicesLine.push_back(ind[i]);
-	//}
-
-
-	//BoundingBox box = {
-	//				[&]() -> GW::MATH::GVECTORF
-	//				{
-	//					GW::MATH::GVECTORF result;
-	//					models["Grass_Flat"].boundBoxCenter.w = 1;
-	//					vProxy.VectorXMatrixF(models["Grass_Flat"].boundBoxCenter, models["Grass_Flat"].matrices[0], result);
-	//					return result;
-	//				}(),
-	//				[&]() -> GW::MATH::GVECTORF
-	//				{
-	//					GW::MATH::GVECTORF result;
-	//					models["Grass_Flat"].boundBoxExtents.w = 1;
-	//					vProxy.VectorXMatrixF(models["Grass_Flat"].boundBoxExtents, models["Grass_Flat"].matrices[0], result);
-	//					return result;
-	//				}()
-	//};
-	//Vertex* vert = collisionHierarchy.root->data.GetVertices();
-	//for (size_t i = 0; i < 8; i++)
-	//{
-	//	Vertex temp = vert[i];
-	//	vertsLine.push_back(vert[i]);
-	//}
-	//int* ind = collisionHierarchy.root->data.GetIndices();
-	//for (size_t i = 0; i < 24; i++)
-	//{
-	//	indicesLine.push_back(ind[i]);
-	//}
-
-	//delete[] ind;
-	//delete[] vert;
-
-	int indiceOffset = vertsLine.size();
-	vertsLine.push_back({ {0,0,0},{},{} });
-	vertsLine.push_back({ {5,0,0},{},{} });
-	vertsLine.push_back({ {0,0,0},{},{} });
-	vertsLine.push_back({ {0,5,0},{},{} });
-	vertsLine.push_back({ {0,0,0},{},{} });
-	vertsLine.push_back({ {0,0,5},{},{} });
-	indicesLine.push_back(indiceOffset);
-	indicesLine.push_back(indiceOffset+1);
-	indicesLine.push_back(indiceOffset+2);
-	indicesLine.push_back(indiceOffset+3);
-	indicesLine.push_back(indiceOffset+4);
-	indicesLine.push_back(indiceOffset+5);
 
 	//Create vertex buffer for collision lines
 	GvkHelper::create_buffer(physicalDevice, device, sizeof(vertsLine[0]) * vertsLine.size(),
@@ -342,6 +184,26 @@ Renderer::Renderer(GW::SYSTEM::GWindow _win, GW::GRAPHICS::GVulkanSurface _vlk)
 	GvkHelper::create_shader_module(device, shaderc_result_get_length(result), // load into Vulkan
 		(char*)shaderc_result_get_bytes(result), &pixelShader);
 	shaderc_result_release(result); // done
+		// Create Vertex Shader
+	std::string vertexShaderCollisionsCode = Renderer::ShaderAsString("../shaders/vsCollisions.hlsl");
+	result = shaderc_compile_into_spv( // compile
+		compiler, vertexShaderCollisionsCode.c_str(), strlen(vertexShaderCollisionsCode.c_str()),
+		shaderc_vertex_shader, "main.vert", "main", options);
+	if (shaderc_result_get_compilation_status(result) != shaderc_compilation_status_success) // errors?
+		std::cout << "Vertex Shader Errors: " << shaderc_result_get_error_message(result) << std::endl;
+	GvkHelper::create_shader_module(device, shaderc_result_get_length(result), // load into Vulkan
+		(char*)shaderc_result_get_bytes(result), &vertexShaderCollisions);
+	shaderc_result_release(result); // done
+	// Create Pixel Shader
+	std::string pixelShaderCollisionsCode = Renderer::ShaderAsString("../shaders/psCollisions.hlsl");
+	result = shaderc_compile_into_spv( // compile
+		compiler, pixelShaderCollisionsCode.c_str(), strlen(pixelShaderCollisionsCode.c_str()),
+		shaderc_fragment_shader, "main.frag", "main", options);
+	if (shaderc_result_get_compilation_status(result) != shaderc_compilation_status_success) // errors?
+		std::cout << "Pixel Shader Errors: " << shaderc_result_get_error_message(result) << std::endl;
+	GvkHelper::create_shader_module(device, shaderc_result_get_length(result), // load into Vulkan
+		(char*)shaderc_result_get_bytes(result), &pixelShaderCollisions);
+	shaderc_result_release(result); // done
 	// Free runtime shader compiler resources
 	shaderc_compile_options_release(options);
 	shaderc_compiler_release(compiler);
@@ -361,6 +223,18 @@ Renderer::Renderer(GW::SYSTEM::GWindow _win, GW::GRAPHICS::GVulkanSurface _vlk)
 	stage_create_info[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
 	stage_create_info[1].module = pixelShader;
 	stage_create_info[1].pName = "main";
+
+	VkPipelineShaderStageCreateInfo stage_create_info_collisions[2] = {};
+	// Create Stage Info for Vertex Shader
+	stage_create_info_collisions[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	stage_create_info_collisions[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
+	stage_create_info_collisions[0].module = vertexShaderCollisions;
+	stage_create_info_collisions[0].pName = "main";
+	// Create Stage Info for Fragment Shader
+	stage_create_info_collisions[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	stage_create_info_collisions[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+	stage_create_info_collisions[1].module = pixelShaderCollisions;
+	stage_create_info_collisions[1].pName = "main";
 	// Assembly State
 	VkPipelineInputAssemblyStateCreateInfo assembly_create_info = {};
 	assembly_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -400,7 +274,7 @@ Renderer::Renderer(GW::SYSTEM::GWindow _win, GW::GRAPHICS::GVulkanSurface _vlk)
 	rasterization_create_info.rasterizerDiscardEnable = VK_FALSE;
 	rasterization_create_info.polygonMode = VK_POLYGON_MODE_FILL;
 	rasterization_create_info.lineWidth = 1.0f;
-	rasterization_create_info.cullMode = VK_CULL_MODE_BACK_BIT; // TURN BACK ON WHEN FIXING THE MODELS
+	rasterization_create_info.cullMode = VK_CULL_MODE_NONE; // TURN BACK ON WHEN FIXING THE MODELS
 	rasterization_create_info.frontFace = VK_FRONT_FACE_CLOCKWISE;
 	rasterization_create_info.depthClampEnable = VK_FALSE;
 	rasterization_create_info.depthBiasEnable = VK_FALSE;
@@ -561,6 +435,7 @@ Renderer::Renderer(GW::SYSTEM::GWindow _win, GW::GRAPHICS::GVulkanSurface _vlk)
 		&pipeline_create_info, nullptr, &pipeline);
 
 	//Create pipeline state for lines
+	pipeline_create_info.pStages = stage_create_info_collisions;
 	assembly_create_info.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
 	vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1,
 		&pipeline_create_info, nullptr, &pipelineLine);
@@ -629,12 +504,16 @@ void Renderer::Render()
 		}
 
 		//Bind data for collision lines
-		pc.materialIndex = 0;
-		pc.modelIndex = 0;
-		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLine);
-		vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexLineHandle, offsets);
-		vkCmdBindIndexBuffer(commandBuffer, indexLineHandle, 0, VK_INDEX_TYPE_UINT32);
-		vkCmdDrawIndexed(commandBuffer, indicesLine.size(), 1, 0, 0, 0);
+		if (camera == 1)
+		{
+
+			pc.materialIndex = 0;
+			pc.modelIndex = 0;
+			vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLine);
+			vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexLineHandle, offsets);
+			vkCmdBindIndexBuffer(commandBuffer, indexLineHandle, 0, VK_INDEX_TYPE_UINT32);
+			vkCmdDrawIndexed(commandBuffer, indicesLine.size(), 1, 0, 0, 0);
+		}
 
 	}
 }
@@ -697,18 +576,114 @@ InputData Renderer::GetAllInput() {
 	return result;
 }
 
+GW::GReturn Renderer::CheckCollision(GW::MATH::GVECTORF camPos)
+{
+	return Renderer::CheckCollision(camPos, collisionHierarchy.root, 0);
+}
+
+GW::GReturn Renderer::CheckCollision(GW::MATH::GVECTORF camPos, Tree::Node* currNode, int depth)
+{
+	if (currNode->left == nullptr || currNode->right == nullptr)
+	{
+		//Check collision with triangles
+		if (currNode->data.matrix != -1)
+		{
+			auto model = models[currNode->data.name];
+
+			for (size_t j = 0; j < model.meshCount; j++)
+			{
+				for (size_t i = 0; i < model.meshes[j].drawInfo.indexCount; i += 3)
+				{
+
+					int indStart = model.meshes[j].drawInfo.indexOffset + i;
+
+					GW::MATH::GVECTORF v1 = { verts[model.vertOffset + indStart].x, verts[model.vertOffset + indStart].y, verts[model.vertOffset + indStart].z, 1 };
+					GW::MATH::GVECTORF v2 = { verts[model.vertOffset + indStart + 1].x, verts[model.vertOffset + indStart + 1].y, verts[model.vertOffset + indStart + 1].z, 1 };
+					GW::MATH::GVECTORF v3 = { verts[model.vertOffset + indStart + 2].x, verts[model.vertOffset + indStart + 2].y, verts[model.vertOffset + indStart + 2].z, 1 };
+					GW::MATH::GTRIANGLEF tri = { v1, v2, v3 };
+					GW::MATH::GAABBCEF box = { currNode->data.center, currNode->data.extents };
+
+					GW::MATH::GCollision::GCollisionCheck check;
+					gProxy.TestTriangleToAABBF(tri, box, check);
+
+					if (check == GW::MATH::GCollision::GCollisionCheck::COLLISION)
+					{
+						//std::cout << "COLLISION DETECTED";
+						return GW::GReturn::FAILURE;
+					}
+				}
+			}
+		}
+		return GW::GReturn::FAILURE;
+	}
+	GW::MATH::GSPHEREF camera = { camPos.x, camPos.y, camPos.z, .3f };
+	GW::MATH::GAABBCEF boxCurr = { currNode->data.center, currNode->data.extents };
+	GW::MATH::GAABBCEF boxLeft = { currNode->left->data.center, currNode->left->data.extents };
+	GW::MATH::GAABBCEF boxRight = { currNode->right->data.center, currNode->right->data.extents };
+	GW::MATH::GCollision::GCollisionCheck checkCurr;
+	GW::MATH::GCollision::GCollisionCheck checkLeft;
+	GW::MATH::GCollision::GCollisionCheck checkRight;
+
+	gProxy.TestSphereToAABBF(camera, boxCurr, checkCurr);
+
+	
+	//check collision with bounding boxes
+	if (checkCurr == GW::MATH::GCollision::GCollisionCheck::COLLISION)
+	{
+		//currNode->data.AddDrawInfo(vertsLine, indicesLine);
+
+		gProxy.TestSphereToAABBF(camera, boxLeft, checkLeft);
+		gProxy.TestSphereToAABBF(camera, boxRight, checkRight);
+
+		GW::GReturn leftRes = GW::GReturn::SUCCESS;
+		GW::GReturn rightRes = GW::GReturn::SUCCESS;
+
+		if (checkLeft == GW::MATH::GCollision::GCollisionCheck::COLLISION)
+		{
+			leftRes = Renderer::CheckCollision(camPos, currNode->left, depth + 1);
+		}
+		if (checkRight == GW::MATH::GCollision::GCollisionCheck::COLLISION)
+		{
+			rightRes = Renderer::CheckCollision(camPos, currNode->right, depth + 1);
+		}
+
+		if (leftRes == GW::GReturn::SUCCESS && rightRes == GW::GReturn::SUCCESS)
+		{
+			return GW::GReturn::SUCCESS;
+		}
+		else
+		{
+			return GW::GReturn::FAILURE;
+		}
+	}
+
+}
+
 void Renderer::UpdateCamera(InputData input, float cameraSpeed) {
 
-	//Create proxy
+	GW::MATH::GMATRIXF cameraCheck;
+
+	//vertsLine.clear();
+	//indicesLine.clear();
+
+	
+	
 	mProxy.RotateYLocalF(viewMatrices[1], timer.Delta() * .5f, viewMatrices[1]);
 	camPositions[1] = viewMatrices[1].row4;
 	//Inverse camera
 	mProxy.InverseF(viewMatrices[0], viewMatrices[0]);
+	cameraCheck = viewMatrices[0];
 
 	float perFrameSpeed = cameraSpeed * timer.Delta();
 
 	//up and down
-	viewMatrices[0].row4.y += (input.kSpace - input.kShift + input.cRTrigger - input.cLTrigger) * perFrameSpeed;
+	
+	cameraCheck.row4.y += (input.kSpace - input.kShift + input.cRTrigger - input.cLTrigger) * perFrameSpeed;
+	if (Renderer::CheckCollision(cameraCheck.row4) == GW::GReturn::SUCCESS)
+	{
+		viewMatrices[0].row4.y += (input.kSpace - input.kShift + input.cRTrigger - input.cLTrigger) * perFrameSpeed;
+	}
+
 
 	//forward/backward
 	float totalZChange = input.kW - input.kS + input.cLYAxis;
@@ -717,10 +692,24 @@ void Renderer::UpdateCamera(InputData input, float cameraSpeed) {
 	float totalXChange = input.kD - input.kA + input.cLXAxis;
 
 	//apply translations
-	GW::MATH::GVECTORF translation = { totalXChange * perFrameSpeed, 0, totalZChange * perFrameSpeed, 0 };
-	GW::MATH::GMATRIXF translationMat;
-	mProxy.TranslateGlobalF(GW::MATH::GIdentityMatrixF, translation, translationMat);
-	mProxy.MultiplyMatrixF(translationMat, viewMatrices[0], viewMatrices[0]);
+	GW::MATH::GVECTORF translationX = { totalXChange * perFrameSpeed, 0, 0, 0 };
+	GW::MATH::GMATRIXF translationXMat;
+	mProxy.TranslateGlobalF(GW::MATH::GIdentityMatrixF, translationX, translationXMat);
+	mProxy.MultiplyMatrixF(translationXMat, viewMatrices[0], cameraCheck);
+	if (Renderer::CheckCollision(cameraCheck.row4) == GW::GReturn::SUCCESS)
+	{
+		mProxy.MultiplyMatrixF(translationXMat, viewMatrices[0], viewMatrices[0]);
+	}
+
+
+	GW::MATH::GVECTORF translationZ = { 0, 0, totalZChange * perFrameSpeed, 0 };
+	GW::MATH::GMATRIXF translationZMat;
+	mProxy.TranslateGlobalF(GW::MATH::GIdentityMatrixF, translationZ, translationZMat);
+	mProxy.MultiplyMatrixF(translationZMat, viewMatrices[0], cameraCheck);
+	if (Renderer::CheckCollision(cameraCheck.row4) == GW::GReturn::SUCCESS)
+	{
+		mProxy.MultiplyMatrixF(translationZMat, viewMatrices[0], viewMatrices[0]);
+	}
 
 	//rotation
 	float rotSpeed = PI * timer.Delta();
@@ -815,37 +804,6 @@ GW::GReturn Renderer::LoadLevel(const char* filepath)
 					worldMatrix.data[(i << 2) + j] = std::stof(line.substr(0, end));
 					line = line.substr(end + 1);
 				}
-			}
-			if (models.find(meshName) == models.end())
-			{
-
-				GW::MATH::GVECTORF bbCenter = { 0, 0, 0, 1 };
-				GW::MATH::GVECTORF bbExtents = { 0, 0, 0, 1 };
-				{
-					std::getline(stream, line);
-					size_t start = line.find('(') + 1;
-					line = line.substr(start, line.find(')') - start);
-					for (size_t j = 0; j < 3; j++)
-					{
-						size_t end = line.find(',');
-						bbCenter.data[j] = std::stof(line.substr(0, end));
-						line = line.substr(end + 1);
-					}
-				}
-				{
-					std::getline(stream, line);
-					size_t start = line.find('(') + 1;
-					line = line.substr(start, line.find(')') - start);
-					for (size_t j = 0; j < 3; j++)
-					{
-						size_t end = line.find(',');
-						bbExtents.data[j] = (std::stof(line.substr(0, end)));
-						line = line.substr(end + 1);
-					}
-				}
-				models[meshName].boundBoxCenter = bbCenter;
-				models[meshName].boundBoxExtents = bbExtents;
-				//vProxy.AddVectorF(bbCenter, bbExtents, models[meshName].boundBoxExtents);
 			}
 			models[meshName].matrices.push_back(worldMatrix);
 		}
@@ -1007,6 +965,8 @@ void Renderer::CleanUp()
 	vkFreeMemory(device, vertexLineData, nullptr);
 	vkDestroyShaderModule(device, vertexShader, nullptr);
 	vkDestroyShaderModule(device, pixelShader, nullptr);
+	vkDestroyShaderModule(device, vertexShaderCollisions, nullptr);
+	vkDestroyShaderModule(device, pixelShaderCollisions, nullptr);
 	vkDestroyDescriptorSetLayout(device, setLayout, nullptr);
 	vkDestroyDescriptorPool(device, descriptorPool, nullptr);
 	vkDestroyPipelineLayout(device, pipelineLayout, nullptr);

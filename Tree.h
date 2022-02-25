@@ -19,13 +19,14 @@ public:
 			this->parent = parent;
 		}
 	};
-	Node* root = nullptr;
+private:
 	unsigned count;
 
 	void Clear(Node* branch);
 	void getDrawInfo(Node* _curr, std::vector<Vertex>& vertices, std::vector<int>& indices);
 
 public:
+	Node* root = nullptr;
 	~Tree();
 	Tree();
 	void Clear();

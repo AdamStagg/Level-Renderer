@@ -24,10 +24,12 @@ if (WIN32)
 	)
 	set(VERTEX_SHADERS
 		shaders/vs.hlsl
+		shaders/vsCollisions.hlsl
 	)
 	
 	set(PIXEL_SHADERS
 		shaders/ps.hlsl
+		shaders/psCollisions.hlsl
 	)
 	add_executable (Level_Renderer 
 		${CPPFILES}
@@ -43,6 +45,20 @@ if (WIN32)
 	)
 
 	set_source_files_properties( shaders/ps.hlsl PROPERTIES
+        VS_SHADER_TYPE Vertex 
+        VS_SHADER_MODEL 5.1
+        VS_SHADER_ENTRYPOINT main
+        VS_TOOL_OVERRIDE "None" 
+	)
+
+	set_source_files_properties( shaders/vsCollisions.hlsl PROPERTIES
+        VS_SHADER_TYPE Vertex 
+        VS_SHADER_MODEL 5.1
+        VS_SHADER_ENTRYPOINT main
+        VS_TOOL_OVERRIDE "None" 
+	)
+
+	set_source_files_properties( shaders/psCollisions.hlsl PROPERTIES
         VS_SHADER_TYPE Vertex 
         VS_SHADER_MODEL 5.1
         VS_SHADER_ENTRYPOINT main

@@ -27,7 +27,7 @@ int main()
 	if (+win.Create(0, 0, 800, 600, GWindowStyle::WINDOWEDBORDERED))
 	{
 		// TODO: Part 1a
-		win.SetWindowName("Level Renderer");
+		win.SetWindowName("Adam Stagg - Level Renderer");
 		VkClearValue clrAndDepth[2];
 		clrAndDepth[0].color = { {0.25f, 0.25f, 0.25f, 1} };
 		clrAndDepth[1].depthStencil = { 1.0f, 0u };
@@ -51,19 +51,14 @@ int main()
 #endif
 		{
 			Renderer renderer(win, vulkan);
-			bool moveCamera = true;
 			while (+win.ProcessWindowEvents())
 			{
 				if (+vulkan.StartFrame(2, clrAndDepth))
 				{
 					renderer.SignalTimer();
-					if (moveCamera)
-					{
-						InputData input = renderer.GetAllInput();
-						if (input.kO != 0) moveCamera = false;
-						renderer.Changelevel(input);
-						renderer.UpdateCamera(input, 3.0f);
-					} 
+					InputData input = renderer.GetAllInput();
+					renderer.Changelevel(input);
+					renderer.UpdateCamera(input, 3.0f);
 					renderer.Render();
 					vulkan.EndFrame(true);
 				}

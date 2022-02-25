@@ -5,6 +5,24 @@
 struct BoundingBox
 {
 	GW::MATH::GVECTORF center, extents;
+	std::string name;
+	int matrix;
+
+	BoundingBox()
+	{
+		center = {};
+		extents = {};
+		name = "";
+		matrix = -1;
+	}
+
+	BoundingBox(GW::MATH::GVECTORF _center, GW::MATH::GVECTORF _extents, std::string _name = "", int _matrix = 0)
+	{
+		center = _center;
+		extents = _extents;
+		name = _name;
+		matrix = _matrix;
+	}
 
 	Vertex* GetVertices()
 	{
@@ -45,5 +63,25 @@ struct BoundingBox
 		};
 
 		return indices;
+	}
+
+	void AddDrawInfo(std::vector<Vertex>& verts, std::vector<int>& ints)
+	{
+		Vertex* ver = BoundingBox::GetVertices();
+		int* ind = BoundingBox::GetIndices();
+
+		int indOffset = verts.size();
+
+		for (size_t i = 0; i < 8; i++)
+		{
+			verts.push_back(ver[i]);
+		}
+		for (size_t i = 0; i < 24; i++)
+		{
+			ints.push_back(ind[i] + indOffset);
+		}
+
+		delete[] ver;
+		delete[] ind;
 	}
 };
