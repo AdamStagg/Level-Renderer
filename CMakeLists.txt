@@ -18,6 +18,9 @@ if (WIN32)
 		XTime.h
 		h2bParser.h
 		Defines.h
+		Tree.h
+		Tree.cpp
+		BoundingBox.h
 	)
 	set(VERTEX_SHADERS
 		shaders/vs.hlsl

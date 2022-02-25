@@ -57,7 +57,7 @@ void Tree::getDrawInfo(Node* _curr, std::vector<Vertex>& vertices, std::vector<i
 	for (size_t i = 0; i < 8; i++)
 	{
 		vertices.push_back(verts[i]);
-	};
+	}
 	for (size_t i = 0; i < 24; i++)
 	{
 		indices.push_back(inds[i] + vertOffset);
@@ -77,7 +77,7 @@ void Tree::AddNode(BoundingBox data)
 		return;
 	}
 
-	Tree:AddNode(data, root, nullptr);
+Tree:AddNode(data, root, nullptr);
 }
 
 void Tree::AddNode(BoundingBox data, Node* _curr, Node* _parent)
@@ -86,7 +86,7 @@ void Tree::AddNode(BoundingBox data, Node* _curr, Node* _parent)
 	{
 		_curr->left = new Node(_curr->data, _curr);
 		_curr->right = new Node(data, _curr);
-		count+=2;
+		count += 2;
 		_curr->data = GenerateNewBox(_curr->data, data);
 	}
 	else { //keep searching
@@ -106,24 +106,57 @@ void Tree::AddNode(BoundingBox data, Node* _curr, Node* _parent)
 
 BoundingBox Tree::GenerateNewBox(BoundingBox box1, BoundingBox box2)
 {
+	GW::MATH::GVECTORF minbound = { FLT_MAX,FLT_MAX,FLT_MAX, 1 };
+	GW::MATH::GVECTORF maxbound = { -FLT_MAX,-FLT_MAX,-FLT_MAX, 1 };
+
+	Vertex* box1v = box1.GetVertices();
+	Vertex* box2v = box2.GetVertices();
+
+	for (size_t i = 0; i < 8; i++)
+	{
+		minbound.x = min(minbound.x, min(box1v[i].x, box2v[i].x));
+		minbound.y = min(minbound.y, min(box1v[i].y, box2v[i].y));
+		minbound.z = min(minbound.z, min(box1v[i].z, box2v[i].z));
+
+		maxbound.x = max(maxbound.x, max(box1v[i].x, box2v[i].x));
+		maxbound.y = max(maxbound.y, max(box1v[i].y, box2v[i].y));
+		maxbound.z = max(maxbound.z, max(box1v[i].z, box2v[i].z));
+	}
+
+	GW::MATH::GVECTORF center = { (minbound.x + maxbound.x) * .5f, (minbound.y + maxbound.y) * .5f, (minbound.z + maxbound.z) * .5f, 0 };
+	GW::MATH::GVECTORF extent = { maxbound.x - center.x, maxbound.y - center.y, maxbound.z - center.z, 0 };
+
+	return { center, extent };
+
+	/*float box1Width =  std::abs(box1.extents.x - box1.center.x);
+	float box1Height = std::abs(box1.extents.y - box1.center.y);
+	float box1Depth =  std::abs(box1.extents.z - box1.center.z);
+	float box2Width =  std::abs(box2.extents.x - box2.center.x);
+	float box2Height = std::abs(box2.extents.y - box2.center.y);
+	float box2Depth =  std::abs(box2.extents.z - box2.center.z);
+
+
 	float newBoxBoundsX[2] = {
-		min(box1.center.x - box1.extents.x, box2.center.x - box2.extents.x),
-		max(box1.extents.x, box2.extents.x),
+		min(box1.center.x - box1Width, box2.center.x - box2Width),
+		max(box1.center.x + box1Width, box2.center.x + box2Width),
 	};
 	float newBoxBoundsY[2] = {
-		min(box1.center.y - box1.extents.y, box2.center.y - box2.extents.y),
-		max(box1.extents.y, box2.extents.y),
+		min(box1.center.y - box1Height, box2.center.y - box2Height),
+		max(box1.center.y + box1Height, box2.center.y + box2Height),
 	};
 	float newBoxBoundsZ[2] = {
-		min(box1.center.z - box1.extents.z, box2.center.z - box2.extents.z),
-		max(box1.extents.z, box2.extents.z),
+		min(box1.center.z - box1Depth, box2.center.z - box2Depth),
+		max(box1.center.z + box1Depth, box2.center.z + box2Depth),
 	};
 
 	BoundingBox output = {};
-	output.center = { (newBoxBoundsX[1] - newBoxBoundsX[0]) / 2.0f, (newBoxBoundsY[1] - newBoxBoundsY[0]) / 2.0f, (newBoxBoundsZ[1] - newBoxBoundsZ[0]) / 2.0f, 1 };
-	output.extents = {newBoxBoundsX[1] - output.center.x, newBoxBoundsY[1] - output.center.y, newBoxBoundsZ[1] - output.center.z, 1};
+	output.center = { (newBoxBoundsX[1] + newBoxBoundsX[0]) / 2.0f, (newBoxBoundsY[1] + newBoxBoundsY[0]) / 2.0f, (newBoxBoundsZ[1] + newBoxBoundsZ[0]) / 2.0f, 1 };
+	output.extents = {newBoxBoundsX[1], newBoxBoundsY[1], newBoxBoundsZ[1], 0};*/
 
-	return output;
+	delete[] box1v;
+	delete[] box2v;
+
+	return {};
 }
 
 float Tree::ManhattanCost(BoundingBox box1, BoundingBox box2)

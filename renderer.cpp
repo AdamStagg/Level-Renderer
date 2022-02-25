@@ -15,7 +15,7 @@ Renderer::Renderer(GW::SYSTEM::GWindow _win, GW::GRAPHICS::GVulkanSurface _vlk)
 
 	//Object creation
 	timer = XTime();
-	
+
 
 	//WVP matrix init
 
@@ -23,7 +23,7 @@ Renderer::Renderer(GW::SYSTEM::GWindow _win, GW::GRAPHICS::GVulkanSurface _vlk)
 	cProxy.Create();
 	mProxy.Create();
 	vProxy.Create();
-	
+
 	viewMatrices.resize(2);
 	camPositions.resize(2);
 
@@ -77,27 +77,61 @@ Renderer::Renderer(GW::SYSTEM::GWindow _win, GW::GRAPHICS::GVulkanSurface _vlk)
 	for (auto& model : models)
 	{
 		//break;
+		//if (model.first == "Path_Steps_Grass_Edge_Top") continue;
+		//if (model.first == "Prop_Fence_Curve_3x3") break;
 		for (size_t i = 0; i < model.second.matrixCount; i++)
 		{
-			collisionHierarchy.AddNode(
-				{ 
-					[&]() -> GW::MATH::GVECTORF
-					{
-						GW::MATH::GVECTORF result;
-						model.second.boundBoxCenter.w = 1;
-						vProxy.VectorXMatrixF(model.second.boundBoxCenter, model.second.matrices[i], result);
-						return result;
-					}(),
-					[&]() -> GW::MATH::GVECTORF
-					{
-						GW::MATH::GVECTORF result;
-						model.second.boundBoxExtents.w = 1;
-						vProxy.VectorXMatrixF(model.second.boundBoxExtents, model.second.matrices[i], result);
-						return result;
-					}()
-				}
-			);
+			GW::MATH::GVECTORF center;
+			GW::MATH::GVECTORF extent;
+			model.second.boundBoxCenter.w = 1;
+			model.second.boundBoxExtents.w = 0;
+			GW::MATH::GMATRIXF rotation = model.second.matrices[i];
+			GW::MATH::GMATRIXF translation = GW::MATH::GIdentityMatrixF;
+			translation.row4 = rotation.row4;
+			rotation.row4 = { 0, 0, 0, 1 };
+
+			vProxy.VectorXMatrixF(model.second.boundBoxCenter, rotation, center);
+			vProxy.VectorXMatrixF(model.second.boundBoxExtents, model.second.matrices[i], extent);
+			//extent.x = center.x + std::abs(center.x - extent.x);
+			//extent.y = center.y + std::abs(center.y - extent.y);
+			//extent.z = center.z + std::abs(center.z - extent.z);
+			
+
+			BoundingBox box = { center, extent };
+			Vertex* boxverts = box.GetVertices();
+
+
+			H2B::VECTOR minbound = { FLT_MAX,FLT_MAX,FLT_MAX };
+			H2B::VECTOR maxbound = { -FLT_MAX,-FLT_MAX,-FLT_MAX };
+
+			for (size_t i = 0; i < 8; i++)
+			{
+				minbound.x = min(boxverts[i].x, minbound.x);
+				minbound.y = min(boxverts[i].y, minbound.y);
+				minbound.z = min(boxverts[i].z, minbound.z);
+				maxbound.x = max(boxverts[i].x, maxbound.x);
+				maxbound.y = max(boxverts[i].y, maxbound.y);
+				maxbound.z = max(boxverts[i].z, maxbound.z);
+			}
+			center = { (minbound.x + maxbound.x) * 0.5f, (minbound.y + maxbound.y) * 0.5f, (minbound.z + maxbound.z) * 0.5f, 1 };
+			extent = { (maxbound.x - center.x), (maxbound.y - center.y), (maxbound.z - center.z), 0 };
+
+			
+			delete[] boxverts;
+			
+
+
+			vProxy.VectorXMatrixF(center, translation, center);
+			
+			GW::MATH::GMATRIXF t2 = { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -10, -4.75, 3, 1 };
+
+			//vProxy.VectorXMatrixF(center, t2, center);
+
+
+			collisionHierarchy.AddNode({ center, extent });
+
 		}
+		//break;
 	}
 
 	//collisionHierarchy.AddNode(
@@ -112,52 +146,90 @@ Renderer::Renderer(GW::SYSTEM::GWindow _win, GW::GRAPHICS::GVulkanSurface _vlk)
 	//		[&]() -> GW::MATH::GVECTORF
 	//		{
 	//			GW::MATH::GVECTORF result;
-	//			models["Prop_Fence_Curve_3x3"].boundBoxExtents.w = 1;
+	//			models["Prop_Fence_Curve_3x3"].boundBoxExtents.w = 0;
 	//			vProxy.VectorXMatrixF(models["Prop_Fence_Curve_3x3"].boundBoxExtents, models["Prop_Fence_Curve_3x3"].matrices[0], result);
 	//			return result;
 	//		}()
 	//	}
 	//);
 
-	/*collisionHierarchy.AddNode(
-		{
-			[&]() -> GW::MATH::GVECTORF
-			{
-				GW::MATH::GVECTORF result;
-				models["Grass_Flat"].boundBoxCenter.w = 1;
-				vProxy.VectorXMatrixF(models["Grass_Flat"].boundBoxCenter, models["Grass_Flat"].matrices[2], result);
-				return result;
-			}(),
-			[&]() -> GW::MATH::GVECTORF
-			{
-				GW::MATH::GVECTORF result;
-				models["Grass_Flat"].boundBoxExtents.w = 1;
-				vProxy.VectorXMatrixF(models["Grass_Flat"].boundBoxExtents, models["Grass_Flat"].matrices[2], result);
-				return result;
-			}()
-		}
-	);
-	collisionHierarchy.AddNode(
-		{
-			[&]() -> GW::MATH::GVECTORF
-			{
-				GW::MATH::GVECTORF result;
-				models["Grass_Flat"].boundBoxCenter.w = 1;
-				vProxy.VectorXMatrixF(models["Grass_Flat"].boundBoxCenter, models["Grass_Flat"].matrices[1], result);
-				return result;
-			}(),
-			[&]() -> GW::MATH::GVECTORF
-			{
-				GW::MATH::GVECTORF result;
-				models["Grass_Flat"].boundBoxExtents.w = 1;
-				vProxy.VectorXMatrixF(models["Grass_Flat"].boundBoxExtents, models["Grass_Flat"].matrices[1], result);
-				return result;
-			}()
-		}
-	);*/
-
+	//collisionHierarchy.AddNode(
+	//	{
+	//		[&]() -> GW::MATH::GVECTORF
+	//		{
+	//			GW::MATH::GVECTORF result;
+	//			models["Grass_Flat"].boundBoxCenter.w = 1;
+	//			vProxy.VectorXMatrixF(models["Grass_Flat"].boundBoxCenter, models["Grass_Flat"].matrices[2], result);
+	//			return result;
+	//		}(),
+	//		[&]() -> GW::MATH::GVECTORF
+	//		{
+	//			GW::MATH::GVECTORF result;
+	//			models["Grass_Flat"].boundBoxExtents.w = 1;
+	//			vProxy.VectorXMatrixF(models["Grass_Flat"].boundBoxExtents, models["Grass_Flat"].matrices[2], result);
+	//			return result;
+	//		}()
+	//	}
+	//);
+	//collisionHierarchy.AddNode(
+	//	{
+	//		[&]() -> GW::MATH::GVECTORF
+	//		{
+	//			GW::MATH::GVECTORF result;
+	//			models["Grass_Flat"].boundBoxCenter.w = 1;
+	//			vProxy.VectorXMatrixF(models["Grass_Flat"].boundBoxCenter, models["Grass_Flat"].matrices[1], result);
+	//			return result;
+	//		}(),
+	//		[&]() -> GW::MATH::GVECTORF
+	//		{
+	//			GW::MATH::GVECTORF result;
+	//			models["Grass_Flat"].boundBoxExtents.w = 1;
+	//			vProxy.VectorXMatrixF(models["Grass_Flat"].boundBoxExtents, models["Grass_Flat"].matrices[1], result);
+	//			return result;
+	//		}()
+	//	}
+	//);
+	//collisionHierarchy.AddNode(
+	//	{
+	//		[&]() -> GW::MATH::GVECTORF
+	//		{
+	//			GW::MATH::GVECTORF result;
+	//			models["Grass_Flat"].boundBoxCenter.w = 1;
+	//			vProxy.VectorXMatrixF(models["Grass_Flat"].boundBoxCenter, models["Grass_Flat"].matrices[0], result);
+	//			return result;
+	//		}(),
+	//		[&]() -> GW::MATH::GVECTORF
+	//		{
+	//			GW::MATH::GVECTORF result;
+	//			models["Grass_Flat"].boundBoxExtents.w = 1;
+	//			vProxy.VectorXMatrixF(models["Grass_Flat"].boundBoxExtents, models["Grass_Flat"].matrices[0], result);
+	//			return result;
+	//		}()
+	//	}
+	//);
+	//collisionHierarchy.AddNode(
+	//	{
+	//		[&]() -> GW::MATH::GVECTORF
+	//		{
+	//			GW::MATH::GVECTORF result;
+	//			models["Prop_Bush_3"].boundBoxCenter.w = 1;
+	//			vProxy.VectorXMatrixF(models["Prop_Bush_3"].boundBoxCenter, models["Prop_Bush_3"].matrices[0], result);
+	//			return result;
+	//		}(),
+	//		[&]() -> GW::MATH::GVECTORF
+	//		{
+	//			GW::MATH::GVECTORF result;
+	//			models["Grass_Flat"].boundBoxExtents.w = 1;
+	//			vProxy.VectorXMatrixF(models["Prop_Bush_3"].boundBoxExtents, models["Prop_Bush_3"].matrices[0], result);
+	//			return result;
+	//		}()
+	//	}
+	//);
 	collisionHierarchy.GetDrawInfo(vertsLine, indicesLine);
-
+	for (size_t i = 0; i < vertsLine.size(); i++)
+	{
+		//vertsLine[i].z = -vertsLine[i].z;
+	}
 	//vertsLine.clear();
 	//indicesLine.clear();
 
@@ -198,6 +270,20 @@ Renderer::Renderer(GW::SYSTEM::GWindow _win, GW::GRAPHICS::GVulkanSurface _vlk)
 
 	//delete[] ind;
 	//delete[] vert;
+
+	int indiceOffset = vertsLine.size();
+	vertsLine.push_back({ {0,0,0},{},{} });
+	vertsLine.push_back({ {5,0,0},{},{} });
+	vertsLine.push_back({ {0,0,0},{},{} });
+	vertsLine.push_back({ {0,5,0},{},{} });
+	vertsLine.push_back({ {0,0,0},{},{} });
+	vertsLine.push_back({ {0,0,5},{},{} });
+	indicesLine.push_back(indiceOffset);
+	indicesLine.push_back(indiceOffset+1);
+	indicesLine.push_back(indiceOffset+2);
+	indicesLine.push_back(indiceOffset+3);
+	indicesLine.push_back(indiceOffset+4);
+	indicesLine.push_back(indiceOffset+5);
 
 	//Create vertex buffer for collision lines
 	GvkHelper::create_buffer(physicalDevice, device, sizeof(vertsLine[0]) * vertsLine.size(),
@@ -509,7 +595,7 @@ void Renderer::Render()
 
 	// now we can draw
 	VkDeviceSize offsets[] = { 0 };
-	
+
 	// Draw submeshes
 	for (size_t i = 0; i < viewMatrices.size(); i++)
 	{
@@ -519,7 +605,7 @@ void Renderer::Render()
 
 	GvkHelper::write_to_buffer(device, storageData[currentBuffer], &shaderData, sizeof(shaderData));
 	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[currentBuffer], 0, VK_NULL_HANDLE);
-	for (size_t camera = 0 ; camera < viewMatrices.size(); camera++)
+	for (size_t camera = 0; camera < viewMatrices.size(); camera++)
 	{
 		//Bind data for triangles / models
 		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
@@ -612,7 +698,7 @@ InputData Renderer::GetAllInput() {
 }
 
 void Renderer::UpdateCamera(InputData input, float cameraSpeed) {
-	
+
 	//Create proxy
 	mProxy.RotateYLocalF(viewMatrices[1], timer.Delta() * .5f, viewMatrices[1]);
 	camPositions[1] = viewMatrices[1].row4;
@@ -693,7 +779,7 @@ void Renderer::CreateVertexIndexBuffers(VkPhysicalDevice& physicalDevice)
 	GvkHelper::write_to_buffer(device, indexData, indices.data(), sizeof(int) * indices.size());
 }
 
-GW::GReturn Renderer::LoadLevel(const char* filepath) 
+GW::GReturn Renderer::LoadLevel(const char* filepath)
 {
 	std::ifstream stream(filepath);
 
@@ -715,7 +801,7 @@ GW::GReturn Renderer::LoadLevel(const char* filepath)
 			line = line.substr(0, line.find('.'));
 			std::string meshName = line;
 			GW::MATH::GMATRIXF worldMatrix;
-		
+
 			for (size_t i = 0; i < 4; i++)
 			{
 				//get line and trim it to only numbers or ,
@@ -733,8 +819,8 @@ GW::GReturn Renderer::LoadLevel(const char* filepath)
 			if (models.find(meshName) == models.end())
 			{
 
-				GW::MATH::GVECTORF bbCenter = {0, 0, 0, 1};
-				GW::MATH::GVECTORF bbExtents = {0, 0, 0, 1};
+				GW::MATH::GVECTORF bbCenter = { 0, 0, 0, 1 };
+				GW::MATH::GVECTORF bbExtents = { 0, 0, 0, 1 };
 				{
 					std::getline(stream, line);
 					size_t start = line.find('(') + 1;
@@ -753,12 +839,13 @@ GW::GReturn Renderer::LoadLevel(const char* filepath)
 					for (size_t j = 0; j < 3; j++)
 					{
 						size_t end = line.find(',');
-						bbExtents.data[j] = (std::stof(line.substr(0, end))) * 0.5f;
+						bbExtents.data[j] = (std::stof(line.substr(0, end)));
 						line = line.substr(end + 1);
 					}
 				}
 				models[meshName].boundBoxCenter = bbCenter;
-				vProxy.AddVectorF(bbCenter, bbExtents, models[meshName].boundBoxExtents);
+				models[meshName].boundBoxExtents = bbExtents;
+				//vProxy.AddVectorF(bbCenter, bbExtents, models[meshName].boundBoxExtents);
 			}
 			models[meshName].matrices.push_back(worldMatrix);
 		}
@@ -781,14 +868,27 @@ void Renderer::ParseFromFile()
 		if (!parseSuccess)
 			continue;
 
+		H2B::VECTOR minbound = { FLT_MAX,FLT_MAX,FLT_MAX };
+		H2B::VECTOR maxbound = { -FLT_MAX,-FLT_MAX,-FLT_MAX };
+
+
 		//copy vertices
 		item.second.vertOffset = verts.size();
 
 		for (size_t i = 0; i < parser.vertices.size(); i++)
 		{
 			verts.push_back((Vertex&)parser.vertices[i]);
+			minbound.x = min(parser.vertices[i].pos.x, minbound.x);
+			minbound.y = min(parser.vertices[i].pos.y, minbound.y);
+			minbound.z = min(parser.vertices[i].pos.z, minbound.z);
+			maxbound.x = max(parser.vertices[i].pos.x, maxbound.x);
+			maxbound.y = max(parser.vertices[i].pos.y, maxbound.y);
+			maxbound.z = max(parser.vertices[i].pos.z, maxbound.z);
 		}
 		item.second.vertCount = verts.size() - item.second.vertOffset;
+
+		item.second.boundBoxCenter = { (minbound.x + maxbound.x) * 0.5f, (minbound.y + maxbound.y) * 0.5f, (minbound.z + maxbound.z) * 0.5f, 1 };
+		item.second.boundBoxExtents = { (maxbound.x - item.second.boundBoxCenter.x), (maxbound.y - item.second.boundBoxCenter.y), (maxbound.z - item.second.boundBoxCenter.z), 0 };
 
 		//copy indices
 		item.second.indexOffset = indices.size();
@@ -846,18 +946,18 @@ void Renderer::Changelevel(InputData input)
 	vkDestroyBuffer(device, indexHandle, nullptr);
 	vkFreeMemory(device, indexData, nullptr);
 
-	
+
 	verts.clear();
 	indices.clear();
 	models.clear();
 
 	VkPhysicalDevice physicalDevice = nullptr;
 	vlk.GetPhysicalDevice((void**)&physicalDevice);
-	
+
 	Renderer::LoadLevel(newFilePath.c_str());
 	Renderer::ParseFromFile();
 	Renderer::CreateVertexIndexBuffers(physicalDevice);
-	
+
 
 }
 
@@ -883,7 +983,7 @@ std::string Renderer::OpenFile()
 		std::wstring wide = ofn.lpstrFile;
 		return std::string(wide.begin(), wide.end());
 	}
-	return "";	
+	return "";
 }
 
 void Renderer::CleanUp()

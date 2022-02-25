@@ -9,7 +9,7 @@ struct BoundingBox
 	Vertex* GetVertices()
 	{
 
-		GW::MATH::GVECTORF halfDimensions = {extents.x - center.x, extents.y - center.y, extents.z - center.z, 0};
+		GW::MATH::GVECTORF halfDimensions = {extents.x, extents.y, extents.z, 0};
 
 		Vertex* vertices = new Vertex[]
 		{
