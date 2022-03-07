@@ -10,12 +10,12 @@ A graphics renderer made from scratch in vulkan.
 6. Change the start-up project from ALL-BUILD to Level-Renderer
 
 ## Features
-Scene loading from text file (generated in blender)
-Hot-swapping scenes by using Control + O
-Camera movement with keyboard (WASD, Left Shift, Space), mouse, and controller (left and right sticks, left and right bumpers)
-Directional and ambient lighting with specular reflections
-Fully instanced draw calls to optimize the GPU
-Camera collision with the environment by using a bounding volume hierarchy tree
+Scene loading from text file (generated in blender)\
+Hot-swapping scenes by using Control + O\
+Camera movement with keyboard (WASD, Left Shift, Space), mouse, and controller (left and right sticks, left and right bumpers)\
+Directional and ambient lighting with specular reflections\
+Fully instanced draw calls to optimize the GPU\
+Camera collision with the environment by using a bounding volume hierarchy tree\
 
 ## Assets
 ```https://opengameart.org/content/modular-terrain```
